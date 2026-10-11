@@ -112,7 +112,7 @@ function buildImageSpamBanDM({ guildName }) {
     .setColor(COLORS.error)
     .setTitle(`You have been kicked from ${guildName}`)
     .setDescription(
-      'You sent an image that was detected as a likely scam image, so you have been softbanned from the server. You may join back after recovering your account.\n\n' +
+      'You sent an image that was detected as a likely scam image, so you have been kicked from the server. You may join back after recovering your account.\n\n' +
         `This is an automatic action. ${SECURE_ACCOUNT_TEXT}`
     )
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
