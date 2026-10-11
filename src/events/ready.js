@@ -1,4 +1,5 @@
-const { Events, PermissionFlagsBits } = require('discord.js');
+const { Events, PermissionFlagsBits, ActivityType } = require('discord.js');
+const config = require('../config');
 const db = require('../db');
 const { sendLog } = require('../utils/logger');
 
@@ -11,6 +12,7 @@ const REQUIRED_PERMISSIONS = [
   ['ManageMessages', 'Manage Messages'],
   ['ModerateMembers', 'Timeout Members'],
   ['BanMembers', 'Ban Members'],
+  ['ManageRoles', 'Manage Roles'], // ^roleicon 용
 ];
 
 module.exports = {
@@ -18,6 +20,18 @@ module.exports = {
   once: true,
   async execute(readyClient) {
     console.log(`Logged in as ${readyClient.user.tag} (mode: ${process.env.BOT_MODE})`);
+
+    // 봇 상태 메시지 설정 (실패해도 시작 과정은 계속 진행)
+    if (config.botStatus) {
+      try {
+        readyClient.user.setPresence({
+          status: 'online',
+          activities: [{ name: config.botStatus, state: config.botStatus, type: ActivityType.Custom }],
+        });
+      } catch (err) {
+        console.warn(`[ready] Could not set the bot status: ${err.message}`);
+      }
+    }
 
     const guild = readyClient.guilds.cache.get(process.env.GUILD_ID);
     let permissionText = 'Could not check (the bot is not in the configured server).';

@@ -39,7 +39,9 @@ module.exports = {
     const command = client.commands.get(commandName);
     if (!command) return;
 
-    if (command.developerOnly) {
+    if (command.everyone) {
+      // 모든 유저가 쓸 수 있는 명령어 (예: ^roleicon). 필요한 권한 확인은 명령어 안에서 처리
+    } else if (command.developerOnly) {
       // 개발자 전용: .env 의 DEVELOPER_ID 와 같은 사람만 사용 (관리자라도 아니면 조용히 무시)
       if (!process.env.DEVELOPER_ID || message.author.id !== process.env.DEVELOPER_ID) return;
     } else {
