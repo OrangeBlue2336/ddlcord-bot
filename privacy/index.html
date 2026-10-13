@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - UmaAutomoderator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+            max-width: 800px;
+            margin: auto;
+        }
+        h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { margin-top: 30px; color: #444; }
+        p, li { font-size: 16px; }
+        ul { padding-left: 20px; }
+        .effective-date { font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>Privacy Policy</h1>
+    <p class="effective-date">Last updated: 2026-10-13</p>
+
+    <p>This is the privacy policy page for <strong>UmaAutomoderator</strong> Discord bot ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about our policy or our practices regarding your personal information, please contact @orangeblue2336 on Discord.</p>
+
+    <h2>1. Data we process</h2>
+    <ul>
+        <li><strong>Message content:</strong> Message text is read in real time to detect spam. It is NOT stored. For same-message spam, only a temporary hash is kept in memory for a short time (about 15 seconds). When action is taken, up to 300 characters of the offending message may be shown in the server's private moderation log channel.</li>
+        <li><strong>Member info:</strong> When a member joins, the account creation date is checked in real time and is NOT stored.</li>
+        <li><strong>Attachments:</strong> Normally only the channel where an image was posted is remembered, briefly, in memory. If one user posts images in several different channels within a short time, those images are downloaded temporarily into memory to compute a similarity hash and compare it with known scam images. If scam keywords are configured, a resized copy may also be sent to the <a href="https://ocr.space/" target="_blank" rel="noopener">OCR.space</a> service to extract text. We do not keep the images.</li>
+        <li><strong>Role icon images:</strong> If a server booster uses the role icon command, the attached image is downloaded temporarily to check its type and size and is then uploaded to Discord as the role icon. We do not keep it.</li>
+        <li><strong>Direct messages:</strong> When the bot takes action against a member, it sends that member a DM explaining what happened. The bot does not read DMs sent to it.</li>
+    </ul>
+
+    <h2>2. Data we store</h2>
+    <p>For moderation purposes, we store these data on <a href="https://www.mongodb.com/" target="_blank" rel="noopener">MongoDB Atlas</a>, where stored data is encrypted at rest:</p>
+    <ul>
+        <li><strong>Message log:</strong> message ID, user ID, channel ID, timestamp. It is used only to delete a spammer's recent messages and is automatically deleted after about 65 minutes. Message content is never stored.</li>
+        <li><strong>Server settings:</strong> feature on/off, whitelisted role IDs, exempt channel IDs, list of known scam image hashes and scam keywords added by moderators, together with the Discord user ID of the moderator who added each entry. These entries contain no data about ordinary members and are removed when a moderator deletes them.</li>
+        <li>Moderation actions are recorded in the server's private log channel.</li>
+    </ul>
+
+    <h2>3. Third parties</h2>
+    <p>Discord, Render (hosting), MongoDB Atlas (database), OCR.space (text extraction from images).<br>We do not sell data, share it for advertising, or use it to train machine learning or AI models.</p>
+
+    
+    <h2>4. Retention and deletion</h2>
+    <p>Data about member activity (the message log above) is automatically deleted after about 65 minutes, and message content is never stored, so normally there is nothing to delete. If you believe we hold data about you, or want to ask about it, contact us below and we will look into it and remove it where we can.</p>
+
+    <h2>5. Contact Us</h2>
+    <p>If you have any questions about this Privacy Policy, please contact us:</p>
+    <ul>
+        <li>Via Discord: @orangeblue2336 (1143199445035536404)</li>
+    </ul>
+
+</body>
+</html>
