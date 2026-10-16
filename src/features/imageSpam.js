@@ -17,7 +17,7 @@ const { deleteMessages } = require('../utils/deleteMessages');
 const { sendLog } = require('../utils/logger');
 const { SlidingWindow } = require('../utils/slidingWindow');
 const imageTools = require('../utils/imageTools');
-const { ocrImage } = require('../utils/ocr');
+const { createOcrSession } = require('../utils/ocr');
 const { matchKeywords } = require('../utils/textMatch');
 const { buildImageSpamBanDM, buildImageSpamTimeoutDM } = require('../utils/dmTemplates');
 const { truncate } = require('../utils/embeds');
@@ -96,7 +96,7 @@ async function collectGroups(images, needOcr) {
 }
 
 // ---------- 2단계: 고유 이미지 1장 검사 (pHash + OCR) ----------
-async function evaluateGroup(group, knownHashes, keywords) {
+async function evaluateGroup(group, knownHashes, keywords, ocrSession) {
   // ① pHash: 알려진 해시 중 가장 가까운 것
   let best = null;
   for (const known of knownHashes) {
@@ -113,7 +113,7 @@ async function evaluateGroup(group, knownHashes, keywords) {
     ocr = { status: 'failed', error: group.prepError ?? 'Could not prepare the image for OCR' };
   } else {
     try {
-      const { text, engine, primaryError } = await ocrImage(group.ocrBuffer);
+      const { text, engine, primaryError } = await ocrSession.ocr(group.ocrBuffer);
       ocr = { status: 'ok', text, engine, primaryError, matched: matchKeywords(text, keywords).map((k) => k.word) };
     } catch (err) {
       ocr = { status: 'failed', error: err.message };
@@ -125,67 +125,38 @@ async function evaluateGroup(group, knownHashes, keywords) {
   return { group, best, hashMatch, ocr, ocrMatch, verdict };
 }
 
-// ---------- 로그용 문구 ----------
-function describeResult(result, index) {
-  const lines = [];
-  if (result.best) {
-    const { distance, id, label } = result.best;
-    const name = label ? ` "${label}"` : '';
-    lines.push(
-      `Hash: closest is #${id}${name}, ${distance}/64 bits different (${imageTools.similarityPercent(distance)}% similar) - ` +
-        (result.hashMatch ? 'MATCH' : 'no match')
-    );
-  } else {
-    lines.push('Hash: no known hashes registered');
-  }
+// ---------- 로그용 문구 (짧고 읽기 쉽게) ----------
+const hoursText = (h) => `${h} hour${h === 1 ? '' : 's'}`;
+const LOG_REASON = 'Detected scam images in multiple channels';
 
-  const { ocr } = result;
+// 이미지마다 2줄만: 가장 가까운 해시 / 일치한 OCR 단어 (기본 엔진이 아닌 엔진이 쓰였을 때만 엔진 번호 표시)
+function describeResult(result, index) {
+  const { best, ocr } = result;
+
+  const hashLine = best
+    ? `Closest hash: #${best.id}${best.label ? ` "${best.label}"` : ''} (${imageTools.similarityPercent(best.distance)}%)`
+    : 'Closest hash: none registered';
+
+  let wordLine;
   if (ocr.status === 'skipped') {
-    lines.push('OCR: skipped (no keywords registered)');
+    wordLine = 'Matched word: - (OCR skipped, no keywords)';
   } else if (ocr.status === 'failed') {
-    lines.push(`OCR FAILED: ${truncate(ocr.error, 200)} (treated as no keyword match)`);
+    wordLine = `Matched word: - (OCR failed: ${truncate(ocr.error, 100)})`;
   } else {
-    const engineLabel = `OCR (engine ${ocr.engine})`;
-    lines.push(
-      ocr.matched.length
-        ? `${engineLabel}: MATCH, keyword ${ocr.matched.map((w) => `"${w}"`).join(', ')}`
-        : `${engineLabel}: no keyword match`
-    );
-    if (ocr.primaryError) {
-      lines.push(`Fallback used: the main OCR engine failed (${truncate(ocr.primaryError, 150)})`);
-    }
-    const excerpt = ocr.text.replace(/\s+/g, ' ').trim();
-    lines.push(`OCR text: ${excerpt ? `"${truncate(excerpt, 150)}"` : '(no text found)'}`);
+    const words = ocr.matched.length ? ocr.matched.map((w) => `"${w}"`).join(', ') : 'none';
+    const engineNote = ocr.engine !== cfg.ocrEngine ? ` (engine ${ocr.engine})` : '';
+    wordLine = `Matched word: ${words}${engineNote}`;
   }
-  return { name: `Image ${index + 1} (sent ${result.group.count}x)`, value: lines.join('\n') };
+  return { name: `Image ${index + 1} (x${result.group.count})`, value: `${hashLine}\n${wordLine}` };
 }
 
-function buildFields(entries, results, skipped) {
-  const channelIds = [...new Set(entries.map((e) => e.data.channelId))];
-  const fields = [
-    { name: 'Channels', value: channelIds.map((id) => `<#${id}>`).join(' '), inline: true },
-    { name: 'Unique images', value: String(results.length), inline: true },
-    ...results.map(describeResult),
-  ];
+function buildFields(results, skipped) {
+  const fields = results.map(describeResult);
   if (skipped.length) {
     const reasons = [...new Set(skipped.map((s) => s.reason))].join('; ');
-    fields.push({ name: 'Images not processed', value: `${skipped.length} (${reasons})` });
+    fields.push({ name: 'Images not processed', value: `${skipped.length} (${truncate(reasons, 200)})` });
   }
   return fields;
-}
-
-function buildReasons(entries, results) {
-  const channelCount = new Set(entries.map((e) => e.data.channelId)).size;
-  const lines = [`Sent images in ${channelCount} different channels within ${cfg.channelWindowMin} minutes`];
-  const hit = results.find((r) => r.verdict === 'ban') ?? results.find((r) => r.verdict !== 'none');
-  if (hit.verdict === 'ban') {
-    lines.push('An image matched BOTH a known scam image (hash) and a registered keyword (OCR)');
-  } else if (hit.hashMatch) {
-    lines.push(`An image matched a known scam image (hash, ${imageTools.similarityPercent(hit.best.distance)}% similar)`);
-  } else {
-    lines.push(`An image's text matched keyword ${hit.ocr.matched.map((w) => `"${w}"`).join(', ')} (OCR)`);
-  }
-  return lines.join('\n');
 }
 
 // ---------- 처벌 ----------
@@ -196,10 +167,14 @@ function punishBan({ client, message, member, reason, fields }) {
   let banned = false;
 
   return runPunishment(client, {
+    // 디스코드의 ban 삭제가 놓친 메시지가 있을 경우를 대비한 안전장치 (메시지 기록을 다시 조회해 지움, 결과는 콘솔에만 기록)
+    sweepLateMessages: true,
+    lateSweepQuiet: true,
+    collectLateMessages: () => db.getRecentUserMessages(userId, Date.now() - cfg.deleteWindowMin * 60 * 1000),
     title: 'Image spam (softbanned)',
     user: member,
     reason,
-    action: `Kick via ban + immediate unban, last ${cfg.deleteWindowMin} minutes of messages deleted`,
+    action: 'Softbanned',
     fields,
     steps: [
       dmStep(message.author, { embeds: [buildImageSpamBanDM({ guildName: guild.name })] }),
@@ -240,15 +215,21 @@ function punishTimeout({ client, message, member, reason, fields, targets }) {
   const unlockTimestamp = Math.floor((Date.now() + timeoutMs) / 1000);
   const alreadyTimedOut = (member.communicationDisabledUntilTimestamp ?? 0) > Date.now();
   const skip = 'user is already timed out';
+  const userId = member.id;
+  const alreadyTargeted = new Set(targets.map((t) => t.messageId));
 
   return runPunishment(client, {
+    // 처벌(DM, 삭제, 타임아웃)이 진행되는 동안 올라온 메시지는 타임아웃까지 끝난 뒤 한 번 더 찾아서 지움
+    sweepLateMessages: true,
+    collectLateMessages: async () => {
+      const fresh = await db.getRecentUserMessages(userId, Date.now() - cfg.deleteWindowMin * 60 * 1000);
+      return fresh.filter((t) => !alreadyTargeted.has(t.messageId));
+    },
     title: 'Image spam (timeout)',
     user: member,
     reason,
-    action: alreadyTimedOut
-      ? 'Deleted messages only (user was already timed out)'
-      : `Deleted messages + ${cfg.timeoutHours}-hour timeout`,
-    fields: [...fields, { name: 'Messages targeted', value: String(new Set(targets.map((t) => t.messageId)).size), inline: true }],
+    action: alreadyTimedOut ? 'Deleted messages only (already timed out)' : `Timed out for ${hoursText(cfg.timeoutHours)}`,
+    fields,
     steps: [
       alreadyTimedOut
         ? { name: 'Send DM', skip }
@@ -270,6 +251,8 @@ function punishTimeout({ client, message, member, reason, fields, targets }) {
 async function warnOcrFailure(client, member, results) {
   const failed = results.find((r) => r.ocr.status === 'failed');
   if (!failed) return;
+  // 일부 이미지만 실패했고 다른 이미지에서는 글자를 읽었다면(예: 엔진 3 성공, 엔진 2 실패) 읽은 글자만으로 검사한 것이므로 경고하지 않음
+  if (results.some((r) => r.ocr.status === 'ok')) return;
   if (Date.now() - lastOcrWarning < cfg.ocrWarnCooldownMin * 60 * 1000) return;
   lastOcrWarning = Date.now();
   await sendLog(client, {
@@ -302,7 +285,9 @@ async function runCheck({ client, message, member, entries }) {
     return false;
   }
 
-  const results = await Promise.all(groups.map((g) => evaluateGroup(g, knownHashes, keywords)));
+  // 이 검사 전용 OCR 세션: 엔진 3 은 첫 이미지에만 쓰고 나머지 이미지는 엔진 2 를 씀 (엔진 3 의 429 오류 방지)
+  const ocrSession = createOcrSession();
+  const results = await Promise.all(groups.map((g) => evaluateGroup(g, knownHashes, keywords, ocrSession)));
   const verdict = results.some((r) => r.verdict === 'ban') ? 'ban' : results.some((r) => r.verdict === 'timeout') ? 'timeout' : 'none';
 
   if (verdict === 'none') {
@@ -310,8 +295,8 @@ async function runCheck({ client, message, member, entries }) {
     return false;
   }
 
-  const reason = buildReasons(entries, results);
-  const fields = buildFields(entries, results, skipped);
+  const reason = LOG_REASON;
+  const fields = buildFields(results, skipped);
 
   // ---- 테스트 모드: 로그만 남기고 끝 ----
   if (db.isMrbeastTestMode()) {
@@ -321,10 +306,7 @@ async function runCheck({ client, message, member, entries }) {
       user: member,
       description: 'Test mode is ON. No messages were deleted, no DM was sent, and no punishment was applied.',
       reason,
-      action:
-        verdict === 'ban'
-          ? `Would have: kick via ban + unban, last ${cfg.deleteWindowMin} minutes of messages deleted`
-          : `Would have: deleted messages + ${cfg.timeoutHours}-hour timeout`,
+      action: verdict === 'ban' ? 'Would have softbanned' : `Would have timed out for ${hoursText(cfg.timeoutHours)}`,
       fields,
     });
     return false;

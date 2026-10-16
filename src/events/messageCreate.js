@@ -2,6 +2,7 @@ const { Events } = require('discord.js');
 const config = require('../config');
 const { canUseCommands } = require('../utils/permissions');
 const { errorEmbed, replyEmbed } = require('../utils/embeds');
+const { interceptPunishedMessage } = require('../utils/punish');
 const pingSpam = require('../features/pingSpam');
 const emojiSpam = require('../features/emojiSpam');
 const sameMessageSpam = require('../features/sameMessageSpam');
@@ -19,6 +20,13 @@ module.exports = {
       imageSpam.trackMessage(message);
     } catch (err) {
       console.error('[automod] Error while recording the message:', err);
+    }
+
+    // 처벌이 진행 중이거나 막 끝난 유저의 메시지는 여기서 모아 삭제 (타임아웃이 적용되기 전에 보낸 메시지가 남지 않도록)
+    try {
+      if (interceptPunishedMessage(message, client)) return;
+    } catch (err) {
+      console.error('[automod] Error while handling a message from a punished user:', err);
     }
 
     // ---- 자동 관리 (먼저 감지된 기능 하나만 처리하고 나머지는 건너뜀) ----

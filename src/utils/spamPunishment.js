@@ -55,6 +55,7 @@ function punishSpammer({ client, message, member, spam, reasons, targets, extraF
   ];
 
   return runPunishment(client, {
+    sweepLateMessages: true, // 처벌이 진행되는 동안 올라온 메시지도 마지막에 삭제
     title: spam.title,
     user: member,
     reason: reasons.join('\n'),

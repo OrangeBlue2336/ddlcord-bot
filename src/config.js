@@ -4,6 +4,9 @@ module.exports = {
   keepAlive: { intervalMin: 10 }, // Render 슬립 방지용 자기 자신 호출 간격(분)
   botStatus: 'Looking for spammers', // 봇 로그인 후 표시할 상태 메시지 (프로필의 사용자 지정 상태). 빈 문자열이면 설정하지 않음
   accountAge: { minDays: 14 },
+  punishment: {
+    lateMessageGraceSec: 5,   // 처벌이 끝난 뒤 이 시간(초) 동안 늦게 도착하는 해당 유저의 메시지도 바로 삭제
+  },
   pingSpam: {
     userMentionLimit: 5,      // 한 메시지 내 서로 다른 유저 멘션 수
     roleMentionLimit: 2,      // 역할 + @everyone + @here 합산

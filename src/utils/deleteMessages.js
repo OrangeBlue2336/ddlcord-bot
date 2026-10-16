@@ -3,6 +3,7 @@
 // 디스코드의 "일괄 삭제(bulk delete)" API 를 사용해 빠르게 지웁니다.
 //   - 한 번에 2~100개까지, 같은 채널의 메시지만 지울 수 있음 → 채널별로 묶고 100개씩 나눠서 호출
 //   - 14일이 지난 메시지는 일괄 삭제를 거부함 → 그런 메시지는 개별 삭제로 처리 (안전장치)
+//   - 일괄 삭제가 "이미 지워진 메시지가 섞여 있어서" 거부되면 그 묶음만 개별 삭제로 다시 처리
 //   - 채널이 여러 개여도 모든 채널을 동시에 처리
 // 필요한 봇 권한: 각 채널에서 "메시지 관리"
 const { SnowflakeUtil } = require('discord.js');
@@ -48,7 +49,22 @@ async function deleteMessages(client, targets) {
         run: async () => {
           const channel = await client.channels.fetch(channelId);
           if (typeof channel?.bulkDelete !== 'function') throw new Error('This channel does not support deleting messages');
-          await channel.bulkDelete(chunk, false);
+          try {
+            await channel.bulkDelete(chunk, false);
+            return;
+          } catch (err) {
+            // 10008 = 묶음 안에 이미 지워진 메시지가 있음, 50034 = 일괄 삭제가 안 되는 오래된 메시지가 있음
+            // 이 경우 묶음 전체가 실패한 것처럼 보이지 않도록 1개씩 지워서 확인 (이미 지워진 것은 성공으로 취급)
+            if (err?.code !== 10008 && err?.code !== 50034) throw err;
+          }
+          const outcomes = await Promise.allSettled(chunk.map((id) => channel.messages.delete(id)));
+          let ok = 0;
+          const errors = [];
+          for (const o of outcomes) {
+            if (o.status === 'fulfilled' || o.reason?.code === 10008) ok++;
+            else errors.push(o.reason);
+          }
+          return { deleted: ok, errors };
         },
       });
     }
@@ -70,15 +86,24 @@ async function deleteMessages(client, targets) {
 
   let deleted = 0;
   const failures = new Map(); // 실패 사유 -> 실패한 메시지 수
+  const addFailure = (err, n) => {
+    const text = describeError(err);
+    failures.set(text, (failures.get(text) ?? 0) + n);
+  };
   results.forEach((result, i) => {
     const { count } = jobs[i];
     if (result.status === 'fulfilled') {
-      deleted += count;
+      const partial = result.value; // 개별 삭제로 전환된 묶음만 { deleted, errors } 를 돌려줌
+      if (partial) {
+        deleted += partial.deleted;
+        for (const err of partial.errors) addFailure(err, 1);
+      } else {
+        deleted += count;
+      }
     } else if (result.reason?.code === 10008 && count === 1) {
       deleted += 1; // 10008 = Unknown Message (이미 삭제됨) → 목적 달성
     } else {
-      const text = describeError(result.reason);
-      failures.set(text, (failures.get(text) ?? 0) + count);
+      addFailure(result.reason, count);
     }
   });
 
