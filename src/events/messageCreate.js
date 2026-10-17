@@ -1,7 +1,5 @@
+// 메시지 이벤트: 자동 관리(도배/스팸 이미지) 검사 전용. 명령어는 슬래시 명령어라서 events/interactionCreate.js 가 처리합니다.
 const { Events } = require('discord.js');
-const config = require('../config');
-const { canUseCommands } = require('../utils/permissions');
-const { errorEmbed, replyEmbed } = require('../utils/embeds');
 const { interceptPunishedMessage } = require('../utils/punish');
 const pingSpam = require('../features/pingSpam');
 const emojiSpam = require('../features/emojiSpam');
@@ -37,36 +35,6 @@ module.exports = {
       if (await imageSpam.handleMessage(message, client)) return;
     } catch (err) {
       console.error('[automod] Error while checking message:', err);
-    }
-
-    // ---- 명령어 처리 ----
-    if (!message.content.startsWith(config.prefix)) return;
-
-    const args = message.content.slice(config.prefix.length).trim().split(/\s+/);
-    const commandName = (args.shift() ?? '').toLowerCase();
-    const command = client.commands.get(commandName);
-    if (!command) return;
-
-    if (command.everyone) {
-      // 모든 유저가 쓸 수 있는 명령어 (예: ^roleicon). 필요한 권한 확인은 명령어 안에서 처리
-    } else if (command.developerOnly) {
-      // 개발자 전용: .env 의 DEVELOPER_ID 와 같은 사람만 사용 (관리자라도 아니면 조용히 무시)
-      if (!process.env.DEVELOPER_ID || message.author.id !== process.env.DEVELOPER_ID) return;
-    } else {
-      const member =
-        message.member ?? (await message.guild.members.fetch(message.author.id).catch(() => null));
-      if (!canUseCommands(member)) return; // 권한 없으면 조용히 무시
-    }
-
-    try {
-      await command.execute(message, args, client);
-    } catch (err) {
-      console.error(`[command:${commandName}] Error:`, err);
-      // 명령어가 실패했는데 아무 반응이 없으면 헷갈리므로 간단히 알림 (DB 연결 문제 등)
-      await replyEmbed(
-        message,
-        errorEmbed('Something went wrong', 'The command failed. Please check the bot console for details.')
-      ).catch(() => {});
     }
   },
 };

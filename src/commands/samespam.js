@@ -1,15 +1,11 @@
-const config = require('../config');
+const { createCommand, addOnOffSubcommands } = require('../utils/slash');
 const { handleToggle } = require('../utils/toggleCommand');
 
-const c = config.sameMessageSpam;
-
 module.exports = {
-  name: 'samespam',
-  description:
-    `Turn same-message spam detection on or off. Triggers when the same message is sent ${c.repeatCount}+ times within ${c.windowSec}s (all channels combined; ` +
-    `ignoring case and surrounding spaces). Punishment: delete messages + ${c.timeoutMin}-minute timeout. Exempt channels are managed with \`^emojispam exempt\`.`,
-  usage: ['samespam on', 'samespam off'],
-  async execute(message, args) {
-    return handleToggle(message, args, 'samespam', 'Same-message spam detection');
+  data: addOnOffSubcommands(createCommand('samespam', 'Detect the same message sent repeatedly.'), 'same-message spam detection'),
+  usage: ['samespam on|off'],
+  async execute(interaction) {
+    // 예외 채널은 /emojispam exempt 로 관리 (이모지 도배와 공용)
+    return handleToggle(interaction, 'samespam', 'Same-message spam detection');
   },
 };

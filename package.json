@@ -5,7 +5,10 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "node src/index.js dev",
-    "start": "node src/index.js prod"
+    "start": "node src/index.js prod",
+    "deploy": "node scripts/deploy-commands.js dev",
+    "deploy:dev": "node scripts/deploy-commands.js dev",
+    "deploy:prod": "node scripts/deploy-commands.js prod"
   },
   "dependencies": {
     "discord.js": "^14.16.0",

@@ -1,41 +1,24 @@
-const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
-
-const ROOT = path.join(__dirname, '..');
+const { loadEnv } = require('./utils/loadEnv');
 
 // ---------- 1. 환경(dev / prod) 선택 및 .env 로드 ----------
-const mode = process.argv[2];
-if (mode !== 'dev' && mode !== 'prod') {
-  console.error('Please start the bot with "npm run dev" (test) or "npm start" (real server).');
-  process.exit(1);
-}
-
-// .env 파일이 있으면 읽고, 없으면 호스팅 서비스(Render 등)의 환경변수를 그대로 사용
-const envPath = path.join(ROOT, `.env.${mode}`);
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-} else {
-  console.log(`.env.${mode} not found - using environment variables from the hosting service.`);
-}
-process.env.BOT_MODE = mode;
+// .env 파일이 있으면 읽고, 없으면 호스팅 서비스(Render 등)의 환경변수를 그대로 사용 (utils/loadEnv.js)
 // DB 이름을 따로 지정하지 않으면 dev / prod 가 자동으로 분리됩니다 (ddlcord_dev / ddlcord_prod)
-process.env.MONGODB_DB = process.env.MONGODB_DB || `ddlcord_${mode}`;
-
-const required = ['BOT_TOKEN', 'GUILD_ID', 'LOG_CHANNEL_ID', 'MONGODB_URI'];
-const missing = required.filter((key) => !process.env[key]);
-if (missing.length) {
-  console.error(`These required values are empty (check .env.${mode} or your hosting environment variables): ${missing.join(', ')}`);
-  process.exit(1);
-}
+const mode = process.argv[2];
+loadEnv(mode, {
+  required: ['BOT_TOKEN', 'GUILD_ID', 'LOG_CHANNEL_ID', 'MONGODB_URI'],
+  usageHint: 'Please start the bot with "npm run dev" (test) or "npm start" (real server).',
+});
 if (!process.env.DEVELOPER_ID) {
-  console.warn('DEVELOPER_ID is empty - the ^keepalive command is disabled.');
+  console.warn('DEVELOPER_ID is empty - the /keepalive command is disabled.');
 }
 
 // ---------- 2. 모듈 로드 (환경변수 로드 이후) ----------
-const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const fs = require('fs');
+const { Client, GatewayIntentBits } = require('discord.js');
 const db = require('./db');
 const keepAlive = require('./utils/keepAlive');
+const { loadCommandModules } = require('./utils/commandLoader');
 
 async function main() {
   // Render 는 포트가 빨리 열려 있어야 하므로 웹서버를 DB 연결보다 먼저 시작
@@ -57,22 +40,13 @@ async function main() {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMembers,     // 신규 멤버 입장 감지 (특권 인텐트)
       GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,   // 메시지 내용 읽기 (특권 인텐트)
+      GatewayIntentBits.MessageContent,   // 도배/스팸 이미지 감지용 메시지 내용 읽기 (특권 인텐트). 명령어는 슬래시라서 필요 없음
     ],
   });
 
   // ---------- 4. 명령어 / 이벤트 자동 로드 ----------
-  client.commands = new Collection();
-
-  const commandsDir = path.join(__dirname, 'commands');
-  for (const file of fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'))) {
-    const command = require(path.join(commandsDir, file));
-    if (!command.name || typeof command.execute !== 'function') {
-      console.warn(`[loader] Skipped commands/${file} (missing name or execute)`);
-      continue;
-    }
-    client.commands.set(command.name, command);
-  }
+  // 슬래시 명령어 모듈 (이름 -> 모듈). 디스코드에 등록하는 일은 별도입니다: 개발봇은 npm run deploy:dev, 실서버 봇은 시작할 때 자동 (events/ready.js)
+  client.commands = loadCommandModules();
 
   const eventsDir = path.join(__dirname, 'events');
   for (const file of fs.readdirSync(eventsDir).filter((f) => f.endsWith('.js'))) {
@@ -85,7 +59,7 @@ async function main() {
     else client.on(event.name, handler);
   }
 
-  console.log(`[loader] Commands: ${[...client.commands.keys()].join(', ')}`);
+  console.log(`[loader] Commands: ${[...client.commands.keys()].map((n) => `/${n}`).join(' ')}`);
 
   // ---------- 5. 예기치 못한 에러로 봇이 꺼지지 않게 ----------
   process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err));

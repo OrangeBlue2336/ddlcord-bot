@@ -1,6 +1,5 @@
 // 코드 내 조정용 상수 (임계값 등). 값을 바꾸고 봇을 재시작하면 적용됩니다.
 module.exports = {
-  prefix: '^',
   keepAlive: { intervalMin: 10 }, // Render 슬립 방지용 자기 자신 호출 간격(분)
   botStatus: 'Looking for spammers', // 봇 로그인 후 표시할 상태 메시지 (프로필의 사용자 지정 상태). 빈 문자열이면 설정하지 않음
   accountAge: { minDays: 14 },
@@ -52,7 +51,7 @@ module.exports = {
     messageLogTtlMin: 65,     // DB 의 메시지 기록 보관 시간 (삭제 범위 60분보다 약간 길게)
   },
 
-  // ^roleicon : 부스터 역할 아이콘 설정 (모든 유저가 사용 가능한 명령어)
+  // /roleicon : 부스터 역할 아이콘 설정 (모든 유저가 사용 가능한 명령어)
   roleIcon: {
     maxBytes: 256 * 1024,                 // 이미지 최대 용량 (디스코드 역할 아이콘 제한 256KB)
     allowedExtensions: ['png', 'jpg', 'jpeg'], // 허용 확장자 (역할 아이콘은 움직이지 않는 이미지만 가능)

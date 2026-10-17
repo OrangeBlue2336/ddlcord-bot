@@ -1,4 +1,4 @@
-// 기능 D: 스팸 이미지 탐지 (^mrbeast)
+// 기능 D: 스팸 이미지 탐지 (/mrbeast)
 //
 // [트리거] 같은 유저가 10분 이내에 서로 다른 3개 이상의 채널에 "사진"(정지 이미지 첨부)을 올림
 //   - 영상, GIF 는 제외. 링크 미리보기 이미지는 대상 아님(첨부파일만).
@@ -7,7 +7,7 @@
 // [검사] 고유 이미지마다 ① pHash 가 알려진 해시와 70% 이상 유사 ② OCR 글자에 등록된 키워드가 있음
 // [조치] 둘 다 맞음 -> 추방(ban 후 즉시 unban, 최근 1시간 메시지는 ban 옵션으로 삭제)
 //        하나만 맞음 -> 최근 1시간 메시지 삭제 + 12시간 타임아웃
-//        테스트 모드(^mrbeast testmode on) -> 아무 조치 없이 "걸렸을 것"이라는 로그만 기록
+//        테스트 모드(/mrbeast testmode on) -> 아무 조치 없이 "걸렸을 것"이라는 로그만 기록
 // 해시와 키워드가 하나도 등록되어 있지 않으면 아무 일도 하지 않습니다.
 const config = require('../config');
 const db = require('../db');
@@ -35,7 +35,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ---------- 사진 판정 ----------
 const STILL_EXT = /\.(png|jpe?g|webp|bmp|avif|heic|heif|tiff?)$/i;
 
-// 정지 이미지 첨부파일인지 (GIF, 영상, SVG 는 제외). ^mrbeast addhash 도 같은 기준을 사용
+// 정지 이미지 첨부파일인지 (GIF, 영상, SVG 는 제외). /mrbeast addhash 도 같은 기준을 사용
 function isStillImage(attachment) {
   const type = (attachment.contentType ?? '').split(';')[0].trim().toLowerCase();
   if (type) return type.startsWith('image/') && type !== 'image/gif' && type !== 'image/svg+xml';

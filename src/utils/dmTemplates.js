@@ -1,5 +1,5 @@
 // 제재 DM 임베드를 만드는 함수 모음.
-// 실제 제재 코드와 ^testdm 이 "같은 함수"를 쓰게 해서, 테스트 DM과 실제 DM이 달라지지 않게 합니다.
+// 실제 제재 코드와 /testdm 이 "같은 함수"를 쓰게 해서, 테스트 DM과 실제 DM이 달라지지 않게 합니다.
 //
 // 모든 기능의 DM 문구가 완성되었습니다. (신규 계정, 멘션 도배, 이모지 도배, 같은 메시지 도배, 스팸 이미지 추방/타임아웃)
 const { EmbedBuilder } = require('discord.js');
@@ -22,7 +22,7 @@ function buildAccountAgeDM({ guildName, unlockTimestamp }) {
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
 }
 
-// ^testdm accountage 용 예시 값: 계정이 5일 13시간 전에 만들어졌다고 가정 → 8일 11시간 타임아웃
+// /testdm accountage 용 예시 값: 계정이 5일 13시간 전에 만들어졌다고 가정 → 8일 11시간 타임아웃
 function buildAccountAgeTestDM(ctx) {
   const now = ctx.now ?? Date.now();
   const createdMs = now - (5 * 24 + 13) * 60 * 60 * 1000;
@@ -47,7 +47,7 @@ function buildPingSpamDM({ guildName, unlockTimestamp }) {
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
 }
 
-// ^testdm pingspam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.pingSpam.timeoutMin)
+// /testdm pingspam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.pingSpam.timeoutMin)
 function buildPingSpamTestDM(ctx) {
   const now = ctx.now ?? Date.now();
   return buildPingSpamDM({
@@ -70,7 +70,7 @@ function buildEmojiSpamDM({ guildName, unlockTimestamp }) {
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
 }
 
-// ^testdm emojispam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.emojiSpam.timeoutMin)
+// /testdm emojispam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.emojiSpam.timeoutMin)
 function buildEmojiSpamTestDM(ctx) {
   const now = ctx.now ?? Date.now();
   return buildEmojiSpamDM({
@@ -93,7 +93,7 @@ function buildSameMessageSpamDM({ guildName, unlockTimestamp }) {
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
 }
 
-// ^testdm samespam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.sameMessageSpam.timeoutMin)
+// /testdm samespam 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.sameMessageSpam.timeoutMin)
 function buildSameMessageSpamTestDM(ctx) {
   const now = ctx.now ?? Date.now();
   return buildSameMessageSpamDM({
@@ -131,7 +131,7 @@ function buildImageSpamTimeoutDM({ guildName, unlockTimestamp }) {
     .setFooter({ text: 'Automated message by bot. Replies are not monitored.' });
 }
 
-// ^testdm mrbeast timeout 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.imageSpam.timeoutHours)
+// /testdm mrbeast timeout 용 예시 값: 명령어 실행 시점 + 타임아웃 시간(config.imageSpam.timeoutHours)
 function buildImageSpamTimeoutTestDM(ctx) {
   const now = ctx.now ?? Date.now();
   return buildImageSpamTimeoutDM({
@@ -140,7 +140,7 @@ function buildImageSpamTimeoutTestDM(ctx) {
   });
 }
 
-// ^testdm 용 등록부: 기능 이름 -> (variant, ctx) => [임베드, ...]
+// /testdm 용 등록부: 기능 이름 -> (variant, ctx) => [임베드, ...]
 // ctx = { guildName, now }
 const testTemplates = {
   accountage: (variant, ctx) => [buildAccountAgeTestDM(ctx)],

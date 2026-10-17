@@ -6,7 +6,7 @@ function hasWhitelistedRole(member) {
   return member.roles.cache.some((role) => db.isWhitelistedRole(role.id));
 }
 
-// 자동 관리 제외 대상: 봇, 관리자 권한 보유자, ^whitelist 로 등록된 역할 보유자
+// 자동 관리 제외 대상: 봇, 관리자 권한 보유자, /whitelist 로 등록된 역할 보유자
 function isWhitelisted(member) {
   if (!member) return false;
   if (member.user?.bot) return true;
@@ -14,7 +14,7 @@ function isWhitelisted(member) {
   return hasWhitelistedRole(member);
 }
 
-// 명령어 사용 가능 대상: 관리자 권한 보유자 + ^whitelist 로 등록된 역할 보유자
+// 명령어 사용 가능 대상: 관리자 권한 보유자 + /whitelist 로 등록된 역할 보유자
 function canUseCommands(member) {
   if (!member || member.user?.bot) return false;
   if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;

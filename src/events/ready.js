@@ -2,6 +2,8 @@ const { Events, PermissionFlagsBits, ActivityType } = require('discord.js');
 const config = require('../config');
 const db = require('../db');
 const { sendLog } = require('../utils/logger');
+const { truncate } = require('../utils/embeds');
+const { registerGuildCommands, describeRegisterError } = require('../utils/registerCommands');
 
 // 봇이 일하려면 필요한 권한 목록
 const REQUIRED_PERMISSIONS = [
@@ -12,8 +14,38 @@ const REQUIRED_PERMISSIONS = [
   ['ManageMessages', 'Manage Messages'],
   ['ModerateMembers', 'Timeout Members'],
   ['BanMembers', 'Ban Members'],
-  ['ManageRoles', 'Manage Roles'], // ^roleicon 용
+  ['ManageRoles', 'Manage Roles'], // /roleicon 용
 ];
+
+// 슬래시 명령어 자동 등록 여부: 실서버(prod)는 기본 켜짐, 개발(dev)은 기본 꺼짐 (npm run deploy:dev 로 직접 등록)
+// 환경변수 AUTO_DEPLOY_COMMANDS=true / false 로 바꿀 수 있음
+function shouldAutoRegister() {
+  const setting = (process.env.AUTO_DEPLOY_COMMANDS ?? '').trim().toLowerCase();
+  if (setting === 'true') return true;
+  if (setting === 'false') return false;
+  return process.env.BOT_MODE === 'prod';
+}
+
+// 시작할 때 슬래시 명령어를 등록하고, 시작 로그에 보여줄 { ok, text } 를 돌려준다 (실패해도 봇은 계속 시작)
+async function syncSlashCommands(readyClient) {
+  if (!shouldAutoRegister()) {
+    return { ok: true, text: 'Not registered at startup. Run "npm run deploy:dev" after changing commands.' };
+  }
+  try {
+    const names = await registerGuildCommands(
+      readyClient.rest,
+      readyClient.application.id,
+      process.env.GUILD_ID,
+      readyClient.commands
+    );
+    console.log(`[commands] Registered ${names.length} slash commands: ${names.map((n) => `/${n}`).join(' ')}`);
+    return { ok: true, text: `✅ Registered ${names.length} slash commands at startup.` };
+  } catch (err) {
+    const reason = describeRegisterError(err);
+    console.error(`[commands] Could not register slash commands: ${reason}`);
+    return { ok: false, text: `❌ Registration failed: ${reason}` };
+  }
+}
 
 module.exports = {
   name: Events.ClientReady,
@@ -51,16 +83,19 @@ module.exports = {
       console.error('[ready] The bot is not in the server set as GUILD_ID. Check .env and the invite.');
     }
 
+    const commandSync = await syncSlashCommands(readyClient);
+
     const featureText = db.FEATURES.map((f) => `${db.isFeatureEnabled(f) ? '🟢' : '🔴'} ${f}`).join('\n');
 
     await sendLog(readyClient, {
       title: 'Bot started',
-      status: missingCount > 0 ? 'warning' : 'info',
+      status: missingCount > 0 || !commandSync.ok ? 'warning' : 'info',
       description: 'The bot is online. If you can see this message, the log channel is set up correctly.',
       fields: [
         { name: 'Environment', value: process.env.BOT_MODE, inline: true },
         { name: 'Database', value: `MongoDB (${process.env.MONGODB_DB})`, inline: true },
         { name: 'Features', value: featureText },
+        { name: 'Slash commands', value: truncate(commandSync.text, 1024) },
         { name: 'Bot permissions (server-wide)', value: permissionText },
       ],
     });

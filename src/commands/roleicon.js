@@ -1,18 +1,18 @@
-// ^roleicon : 부스터 역할 아이콘 설정/제거 (모든 유저가 사용 가능)
-//   ^roleicon (이미지 첨부)  -> 내 부스터 역할의 아이콘을 첨부한 이미지로 변경
-//   ^roleicon remove         -> 내 부스터 역할의 아이콘 제거
+// /roleicon : 부스터 역할 아이콘 설정/제거 (모든 유저가 사용 가능)
+//   /roleicon set image:(이미지)  -> 내 부스터 역할의 아이콘을 첨부한 이미지로 변경
+//   /roleicon remove              -> 내 부스터 역할의 아이콘 제거
 //
 // "부스터 역할" 판정: config.roleIcon.guilds[서버ID] 의 아래 기준 역할 ~ 위 기준 역할 "사이"(두 역할 제외)에 있는
 // 역할 중 명령어를 쓴 멤버가 가진 역할. 없으면 "찾을 수 없음", 2개 이상이면 관리자 문의 안내 (변경하지 않음)
 const { PermissionFlagsBits, GuildFeature } = require('discord.js');
 const config = require('../config');
+const { createCommand } = require('../utils/slash');
 const { infoEmbed, successEmbed, errorEmbed, warnEmbed, replyEmbed, truncate } = require('../utils/embeds');
 const { downloadImage } = require('../utils/imageTools');
 const { describeError } = require('../utils/describeError');
 const { sendLog } = require('../utils/logger');
 
 const cfg = config.roleIcon;
-const p = config.prefix;
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 
 const cooldowns = new Map(); // userId -> 이 시각(ms)까지 사용 불가
@@ -26,16 +26,8 @@ function detectImageType(buffer) {
 }
 
 // 문제가 없으면 { buffer, name }, 문제가 있으면 { problem: '안내 문구' }
-async function checkAttachment(message) {
-  const attachments = [...message.attachments.values()];
-  if (!attachments.length) {
-    return { problem: `Attach an image to the same message as the command.\nExample: \`${p}roleicon\` + a PNG or JPG image` };
-  }
-  if (attachments.length > 1) {
-    return { problem: 'Please attach only one image.' };
-  }
-
-  const file = attachments[0];
+// (슬래시 명령어의 image 옵션은 첨부파일 1개만 받으므로 "첨부 없음/여러 장" 검사는 필요 없음)
+async function checkAttachment(file) {
   const extension = (file.name ?? '').split('.').pop()?.toLowerCase() ?? '';
   const allowedText = cfg.allowedExtensions.map((e) => e.toUpperCase()).join(', ');
   if (!cfg.allowedExtensions.includes(extension)) {
@@ -66,8 +58,8 @@ async function checkAttachment(message) {
 
 // ---------- 대상 역할 찾기 ----------
 // 반환: { role } | { embed }  (embed 는 그대로 보여줄 안내)
-function findTargetRole(message, member) {
-  const guild = message.guild;
+function findTargetRole(interaction, member) {
+  const guild = interaction.guild;
   const setting = cfg.guilds[guild.id];
   const adminHint = 'Please contact an administrator.';
 
@@ -108,8 +100,8 @@ function findTargetRole(message, member) {
 
 // ---------- 서버/봇 조건 ----------
 // 문제가 없으면 null, 있으면 안내 문구
-async function checkServerAndBot(message, role) {
-  const guild = message.guild;
+async function checkServerAndBot(interaction, role) {
+  const guild = interaction.guild;
   if (!guild.features.includes(GuildFeature.RoleIcons)) {
     return 'This server cannot use role icons yet. Role icons require Server Boost Level 2 or higher.';
   }
@@ -124,27 +116,27 @@ async function checkServerAndBot(message, role) {
 }
 
 // ---------- 하위 명령어 ----------
-async function handleSet(message, member, role) {
-  const checked = await checkAttachment(message);
+async function handleSet(interaction, member, role) {
+  const checked = await checkAttachment(interaction.options.getAttachment('image', true));
   if (checked.problem) {
-    return replyEmbed(message, errorEmbed('Could not set the role icon', checked.problem));
+    return replyEmbed(interaction, errorEmbed('Could not set the role icon', checked.problem));
   }
-  const problem = await checkServerAndBot(message, role);
-  if (problem) return replyEmbed(message, errorEmbed('Could not set the role icon', problem));
+  const problem = await checkServerAndBot(interaction, role);
+  if (problem) return replyEmbed(interaction, errorEmbed('Could not set the role icon', problem));
 
-  cooldowns.set(message.author.id, Date.now() + cfg.cooldownSec * 1000);
+  cooldowns.set(interaction.user.id, Date.now() + cfg.cooldownSec * 1000);
   try {
-    await role.setIcon(checked.buffer, `Role icon set by ${message.author.username} (${message.author.id})`);
+    await role.setIcon(checked.buffer, `Role icon set by ${interaction.user.username} (${interaction.user.id})`);
   } catch (err) {
     console.warn(`[roleicon] setIcon failed: ${describeError(err)}`);
     const reason =
       err?.code === 50035
         ? `Discord rejected the image. Please try a different image (a square PNG or JPG around 64x64 works best).\n\`${truncate(err.message, 300)}\``
         : describeError(err);
-    return replyEmbed(message, errorEmbed('Could not set the role icon', reason));
+    return replyEmbed(interaction, errorEmbed('Could not set the role icon', reason));
   }
 
-  await sendLog(message.client, {
+  await sendLog(interaction.client, {
     title: 'Role icon changed',
     status: 'info',
     user: member,
@@ -154,65 +146,64 @@ async function handleSet(message, member, role) {
       { name: 'Image', value: `${truncate(checked.name, 100)} (${kb(checked.size)})`, inline: true },
     ],
   });
-  return replyEmbed(message, successEmbed('Role icon updated', `The icon of <@&${role.id}> has been changed.`));
+  return replyEmbed(interaction, successEmbed('Role icon updated', `The icon of <@&${role.id}> has been changed.`));
 }
 
-async function handleRemove(message, member, role) {
+async function handleRemove(interaction, member, role) {
   if (!role.icon && !role.unicodeEmoji) {
-    return replyEmbed(message, infoEmbed('No role icon', `<@&${role.id}> does not have an icon, so there is nothing to remove.`));
+    return replyEmbed(interaction, infoEmbed('No role icon', `<@&${role.id}> does not have an icon, so there is nothing to remove.`));
   }
-  const problem = await checkServerAndBot(message, role);
-  if (problem) return replyEmbed(message, errorEmbed('Could not remove the role icon', problem));
+  const problem = await checkServerAndBot(interaction, role);
+  if (problem) return replyEmbed(interaction, errorEmbed('Could not remove the role icon', problem));
 
-  cooldowns.set(message.author.id, Date.now() + cfg.cooldownSec * 1000);
+  cooldowns.set(interaction.user.id, Date.now() + cfg.cooldownSec * 1000);
   try {
     // 이미지 아이콘과 이모지 아이콘 모두 "역할 아이콘"이므로 둘 다 제거
     await role.edit({
       icon: null,
       ...(role.unicodeEmoji ? { unicodeEmoji: null } : {}),
-      reason: `Role icon removed by ${message.author.username} (${message.author.id})`,
+      reason: `Role icon removed by ${interaction.user.username} (${interaction.user.id})`,
     });
   } catch (err) {
     console.warn(`[roleicon] remove failed: ${describeError(err)}`);
-    return replyEmbed(message, errorEmbed('Could not remove the role icon', describeError(err)));
+    return replyEmbed(interaction, errorEmbed('Could not remove the role icon', describeError(err)));
   }
 
-  await sendLog(message.client, {
+  await sendLog(interaction.client, {
     title: 'Role icon removed',
     status: 'info',
     user: member,
     action: 'Removed role icon',
     fields: [{ name: 'Role', value: `<@&${role.id}> (${role.name})`, inline: true }],
   });
-  return replyEmbed(message, successEmbed('Role icon removed', `The icon of <@&${role.id}> has been removed.`));
+  return replyEmbed(interaction, successEmbed('Role icon removed', `The icon of <@&${role.id}> has been removed.`));
 }
 
 module.exports = {
-  name: 'roleicon',
+  data: createCommand('roleicon', 'Set or remove the icon of your booster role.', { adminOnly: false })
+    .addSubcommand((sub) =>
+      sub
+        .setName('set')
+        .setDescription('Set your booster role icon (PNG or JPG, max 256 KB).')
+        .addAttachmentOption((option) => option.setName('image').setDescription('The icon image (PNG or JPG, max 256 KB).').setRequired(true))
+    )
+    .addSubcommand((sub) => sub.setName('remove').setDescription('Remove your booster role icon.')),
   everyone: true, // 관리자가 아니어도 누구나 사용 가능
-  description:
-    'Set or remove the icon of your booster role. Attach a PNG or JPG image (max 256 KB) to set it, or use "remove" to delete the current icon.',
-  usage: ['roleicon (attach an image)', 'roleicon remove'],
-  async execute(message, args) {
-    const sub = (args[0] ?? '').toLowerCase();
-    if (sub && sub !== 'remove') {
-      return replyEmbed(
-        message,
-        errorEmbed('Invalid usage', `Usage:\n\`${p}roleicon\` (attach a PNG or JPG image)\n\`${p}roleicon remove\``)
-      );
-    }
+  usage: ['roleicon set (attach PNG/JPG, max 256 KB)', 'roleicon remove'],
+  async execute(interaction) {
+    const sub = interaction.options.getSubcommand();
 
-    const member = message.member ?? (await message.guild.members.fetch(message.author.id).catch(() => null));
+    const member = interaction.member ?? (await interaction.guild.members.fetch(interaction.user.id).catch(() => null));
     if (!member) return;
 
-    const wait = (cooldowns.get(message.author.id) ?? 0) - Date.now();
+    const wait = (cooldowns.get(interaction.user.id) ?? 0) - Date.now();
     if (wait > 0) {
-      return replyEmbed(message, warnEmbed('Please wait', `You can use this command again in ${Math.ceil(wait / 1000)} seconds.`));
+      return replyEmbed(interaction, warnEmbed('Please wait', `You can use this command again in ${Math.ceil(wait / 1000)} seconds.`));
     }
 
-    const found = findTargetRole(message, member);
-    if (found.embed) return replyEmbed(message, found.embed);
+    const found = findTargetRole(interaction, member);
+    if (found.embed) return replyEmbed(interaction, found.embed);
 
-    return sub === 'remove' ? handleRemove(message, member, found.role) : handleSet(message, member, found.role);
+    return sub === 'remove' ? handleRemove(interaction, member, found.role) : handleSet(interaction, member, found.role);
   },
 };

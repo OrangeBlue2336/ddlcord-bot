@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   samespam_enabled: true,
   mrbeast_enabled: true,
   mrbeast_testmode: false,
-  keepalive_enabled: false, // Render 슬립 방지 (^keepalive on/off)
+  keepalive_enabled: false, // Render 슬립 방지 (/keepalive on/off)
 };
 
 // ---------- 메모리 캐시 ----------

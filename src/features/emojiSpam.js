@@ -3,7 +3,7 @@
 //   1. 한 메시지에 이모지 N개 이상 (같은 이모지를 반복해도 모두 셈)
 //   2. 같은 채널에서 시간 윈도우(기본 15초) 안에 이모지가 포함된 메시지 N개 이상
 // 이모지 = 유니코드 이모지(가족/국기/피부색 같은 조합형은 1개) + 서버 커스텀 이모지(<:이름:ID>, <a:이름:ID>)
-// 예외 채널(^emojispam exempt)과 그 채널의 스레드/포럼 게시글에서는 검사하지 않습니다.
+// 예외 채널(/emojispam exempt)과 그 채널의 스레드/포럼 게시글에서는 검사하지 않습니다.
 // 처리: 메시지 삭제 → 채널 통보 → 타임아웃 → DM → 로그 (utils/spamPunishment.js 공용)
 const emojiRegex = require('emoji-regex');
 const config = require('../config');

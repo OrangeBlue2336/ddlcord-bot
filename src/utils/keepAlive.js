@@ -1,6 +1,6 @@
 // Render 호스팅용 keep-alive
 // 1) 간단한 웹서버: Render 웹 서비스는 포트를 열어두어야 정상 실행으로 인정됩니다. (항상 켜짐)
-// 2) 자기 자신 호출: ^keepalive on 이면 10분마다 자기 주소로 요청을 보내 슬립을 막고, 결과를 콘솔에 남깁니다.
+// 2) 자기 자신 호출: /keepalive on 이면 10분마다 자기 주소로 요청을 보내 슬립을 막고, 결과를 콘솔에 남깁니다.
 const http = require('http');
 const config = require('../config');
 const db = require('../db');

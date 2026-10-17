@@ -1,4 +1,5 @@
 const db = require('../db');
+const { createCommand } = require('../utils/slash');
 const { infoEmbed, replyEmbed, truncate } = require('../utils/embeds');
 
 const FEATURE_LABELS = {
@@ -10,12 +11,11 @@ const FEATURE_LABELS = {
 };
 
 module.exports = {
-  name: 'status',
-  description: 'Show the current on/off state of each feature, test mode, exempt channels, and whitelisted roles.',
+  data: createCommand('status', 'Show feature states, exempt channels and whitelisted roles.'),
   usage: ['status'],
-  async execute(message) {
+  async execute(interaction) {
     const featureLines = db.FEATURES.map(
-      (f) => `${db.isFeatureEnabled(f) ? '🟢 ON ' : '🔴 OFF'}  \`${f}\` — ${FEATURE_LABELS[f]}`
+      (f) => `${db.isFeatureEnabled(f) ? '🟢 ON ' : '🔴 OFF'}  \`${f}\` - ${FEATURE_LABELS[f]}`
     );
 
     const channelIds = db.getSpamExemptChannelIds();
@@ -41,6 +41,6 @@ module.exports = {
       }
     );
 
-    await replyEmbed(message, embed);
+    await replyEmbed(interaction, embed);
   },
 };
