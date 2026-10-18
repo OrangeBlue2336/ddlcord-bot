@@ -18,42 +18,102 @@
         h2 { margin-top: 30px; color: #444; }
         p, li { font-size: 16px; }
         ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
         .effective-date { font-style: italic; color: #666; }
+        .table-wrap { overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; font-size: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; vertical-align: top; }
+        th { background: #f6f6f6; }
     </style>
 </head>
 <body>
 
     <h1>Privacy Policy</h1>
-    <p class="effective-date">Last updated: 2026-10-13</p>
+    <p class="effective-date">Last updated: 2026-10-19</p>
 
-    <p>This is the privacy policy page for <strong>UmaAutomoderator</strong> Discord bot ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about our policy or our practices regarding your personal information, please contact @orangeblue2336 on Discord.</p>
+    <p>This is the privacy policy for the <strong>UmaAutomoderator</strong> Discord bot ("we," "our," or "us"). We are committed to protecting your privacy. This policy explains what data the bot handles, why, how long it is kept, who it is shared with, and how you can ask us about it or have it deleted.</p>
 
-    <h2>1. Data we process</h2>
+    <h2>1. About this bot</h2>
     <ul>
-        <li><strong>Message content:</strong> Message text is read in real time to detect spam. It is NOT stored. For same-message spam, only a temporary hash is kept in memory for a short time (about 15 seconds). When action is taken, up to 300 characters of the offending message may be shown in the server's private moderation log channel.</li>
-        <li><strong>Member info:</strong> When a member joins, the account creation date is checked in real time and is NOT stored.</li>
-        <li><strong>Attachments:</strong> Normally only the channel where an image was posted is remembered, briefly, in memory. If one user posts images in several different channels within a short time, those images are downloaded temporarily into memory to compute a similarity hash and compare it with known scam images. If scam keywords are configured, a resized copy may also be sent to the <a href="https://ocr.space/" target="_blank" rel="noopener">OCR.space</a> service to extract text. We do not keep the images.</li>
+        <li>UmaAutomoderator is an automatic moderation bot. It protects one specific Discord server from spam and scams (new accounts, mass mentions, emoji spam, repeated messages and known scam images). It is operated by an individual developer and is not a public bot.</li>
+        <li>This policy applies to people whose accounts or messages are processed by the bot in that server.</li>
+        <li>The bot is not directed at children. Discord requires users to be at least 13 years old, and we do not knowingly collect data from anyone under that age.</li>
+    </ul>
+
+    <h2>2. Data we process, and why</h2>
+    <p>We only use data to provide the moderation features described here. We do not use it for any other purpose.</p>
+    <ul>
+        <li><strong>Account and server information:</strong> Your Discord user ID, the date your account was created, when you joined the server, and your server roles. This is used to time out very new accounts and to skip members who are exempt from moderation (administrators and whitelisted roles). The account creation date is checked in real time and is NOT stored.</li>
+        <li><strong>Message text:</strong> Read in real time to count emojis and to detect the same message being repeated. It is NOT stored. For repeated-message detection, only a short fingerprint (hash) of the text is kept in memory for up to about 15 seconds. When the bot takes action for repeated messages, up to 300 characters of the offending message are shown in the server's private moderation log channel on Discord.</li>
+        <li><strong>Mentions:</strong> The list of users and roles a message mentions (not the text itself) is used to detect mass mentions. It is kept only in memory for up to about 15 seconds.</li>
+        <li><strong>Images:</strong> If scam image detection is turned on, the bot briefly remembers in memory (up to about 10 minutes) the message ID, channel ID and image link of images you post. If one user posts images in several different channels within a short time, those images are downloaded temporarily into memory to compute a similarity hash and compare it with known scam images. If scam keywords are configured, a resized copy may also be sent to the <a href="https://ocr.space/" target="_blank" rel="noopener">OCR.space</a> service to read any text in it. We do not keep the images.</li>
         <li><strong>Role icon images:</strong> If a server booster uses the role icon command, the attached image is downloaded temporarily to check its type and size and is then uploaded to Discord as the role icon. We do not keep it.</li>
-        <li><strong>Direct messages:</strong> When the bot takes action against a member, it sends that member a DM explaining what happened. The bot does not read DMs sent to it.</li>
+        <li><strong>Direct messages:</strong> When the bot takes action against a member, it sends that member a DM explaining what happened. These DMs are only about the moderation action, never advertising. The bot does not read DMs sent to it.</li>
     </ul>
 
-    <h2>2. Data we store</h2>
-    <p>For moderation purposes, we store these data on <a href="https://www.mongodb.com/" target="_blank" rel="noopener">MongoDB Atlas</a>, where stored data is encrypted at rest:</p>
+    <h2>3. Data we store</h2>
+    <p>The data below is stored on <a href="https://www.mongodb.com/" target="_blank" rel="noopener">MongoDB Atlas</a>, where it is encrypted at rest. Message content is never stored.</p>
+    <div class="table-wrap">
+    <table>
+        <tr><th>Data</th><th>Purpose</th><th>How long</th></tr>
+        <tr>
+            <td><strong>Message log:</strong> message ID, user ID, channel ID, time</td>
+            <td>To delete a spammer's recent messages after a violation</td>
+            <td>Deleted automatically after about 65 minutes</td>
+        </tr>
+        <tr>
+            <td><strong>Server settings:</strong> feature on/off, whitelisted role IDs, exempt channel IDs</td>
+            <td>To run the bot as configured by server administrators</td>
+            <td>Until an administrator removes them</td>
+        </tr>
+        <tr>
+            <td><strong>Moderator entries:</strong> hashes of known scam images, scam keywords, and the Discord user ID of the moderator who added each entry</td>
+            <td>To detect known scam images. These entries contain no data about ordinary members.</td>
+            <td>Until a moderator deletes them</td>
+        </tr>
+    </table>
+    </div>
+    <p>Two other places hold some data:</p>
     <ul>
-        <li><strong>Message log:</strong> message ID, user ID, channel ID, timestamp. It is used only to delete a spammer's recent messages and is automatically deleted after about 65 minutes. Message content is never stored.</li>
-        <li><strong>Server settings:</strong> feature on/off, whitelisted role IDs, exempt channel IDs, list of known scam image hashes and scam keywords added by moderators, together with the Discord user ID of the moderator who added each entry. These entries contain no data about ordinary members and are removed when a moderator deletes them.</li>
-        <li>Moderation actions are recorded in the server's private log channel.</li>
+        <li><strong>The server's private moderation log channel on Discord:</strong> Each action is recorded there with the user, the reason, the channel, the result of each step, and (for repeated messages) up to 300 characters of the message. It stays on Discord and is controlled by the server's staff, who can delete it. We do not copy it anywhere else.</li>
+        <li><strong>Hosting logs:</strong> Our hosting provider keeps short-lived technical logs (for example, error messages). They may include user IDs but never message content, and are kept for a limited time under the provider's own policy.</li>
     </ul>
 
-    <h2>3. Third parties</h2>
-    <p>Discord, Render (hosting), MongoDB Atlas (database), OCR.space (text extraction from images).<br>We do not sell data, share it for advertising, or use it to train machine learning or AI models.</p>
+    <h2>4. Who we share data with</h2>
+    <p>We do not sell data, share it for advertising, or use it for malicious purposes. We only use the following service providers, who process data on our behalf to run the bot and not for their own purposes:</p>
+    <ul>
+        <li><strong>Discord</strong>: The platform the bot runs on.</li>
+        <li><strong>Render</strong> (hosting): Runs the bot, so all data above passes through it while being processed.</li>
+        <li><strong>MongoDB Atlas</strong> (database): Stores the data in section 3.</li>
+        <li><strong>OCR.space</strong> (text recognition): May receive a resized copy of an image in the situation described in section 2. According to its <a href="https://ocr.space/privacypolicy" target="_blank" rel="noopener">privacy policy</a>, uploaded images are deleted after processing.</li>
+    </ul>
+    <p>These providers may process data in other countries. We may also disclose data if the law requires it.</p>
 
-    
-    <h2>4. Retention and deletion</h2>
-    <p>Data about member activity (the message log above) is automatically deleted after about 65 minutes, and message content is never stored, so normally there is nothing to delete. If you believe we hold data about you, or want to ask about it, contact us below and we will look into it and remove it where we can.</p>
+    <h2>5. What we don't do</h2>
+    <ul>
+        <li>We do not use message content or any other data to train machine learning or AI models.</li>
+        <li>We do not build profiles of users, track users, or use data to make decisions about eligibility for anything.</li>
+        <li>We do not ask for passwords or login tokens, and we do not contact you outside Discord.</li>
+    </ul>
 
-    <h2>5. Contact Us</h2>
-    <p>If you have any questions about this Privacy Policy, please contact us:</p>
+    <h2>6. Your choices and rights</h2>
+    <ul>
+        <li><strong>Opting out:</strong> Because the bot protects the whole server, message scanning cannot be switched off for one person. Administrators and whitelisted roles are exempt, and you can always leave the server if you disagree with the terms.</li>
+        <li><strong>Asking about or deleting your data:</strong> You can ask us what data we hold about you and ask us to correct or delete it by contacting us below. We will reply within 30 days. Since most activity data is deleted automatically within about 65 minutes and message content is never stored, there is usually nothing left to delete, but we will check and remove anything tied to your user ID. We cannot delete messages or moderation log posts that are on Discord. The server staff can do that.</li>
+        <li><strong>Legal basis (EU/UK users):</strong> We process this data under our legitimate interest in protecting the server and its members from spam and scams.</li>
+    </ul>
+
+    <h2>7. Security</h2>
+    <p>Data is encrypted in transit (HTTPS/TLS) and the database is encrypted at rest. The bot's access tokens and keys are kept in protected environment settings, not written into the source code, and only the developer has access. If we become aware of unauthorized access to your data, we will notify Discord and affected users as required by law and Discord's rules.</p>
+
+    <h2>8. Reporting problems</h2>
+    <p>If you think the bot punished you by mistake, or you want to report a problem with the bot or its use, please contact the server staff (who can lift a timeout) or contact us below. We will review reports and take appropriate action.</p>
+
+    <h2>9. Changes to this policy</h2>
+    <p>We may update this policy when the bot's features or data handling change. The latest version is always on this page, with the date it was last updated at the top.</p>
+
+    <h2>10. Contact Us</h2>
+    <p>For questions, data requests or reports:</p>
     <ul>
         <li>Via Discord: @orangeblue2336 (1143199445035536404)</li>
     </ul>

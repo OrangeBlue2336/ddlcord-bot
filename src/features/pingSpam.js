@@ -1,7 +1,7 @@
 // 기능 B: 멘션 도배
 // 다음 중 하나라도 만족하면 멘션 도배로 판정합니다 (기준값은 config.js 의 pingSpam).
 //   1. 한 메시지에 서로 다른 유저 N명 이상 멘션
-//   2. 한 메시지에 서로 다른 역할 N개 이상 멘션 (@everyone, @here 도 역할 1개로 취급)
+//   2. 한 메시지에 서로 다른 역할 N개 이상 멘션 (@everyone/@here 는 합쳐서 역할 1개로 취급)
 //   3. 시간 윈도우(기본 15초) 안에 멘션이 포함된 메시지 N개 이상 (모든 채널 합산)
 // 처리 순서: 메시지 삭제 → 채널 통보 → 타임아웃 → DM → 로그 (utils/spamPunishment.js 공용)
 const config = require('../config');
@@ -16,27 +16,22 @@ const cfg = config.pingSpam;
 
 // 유저별로 "멘션이 포함된 메시지"를 기억하는 윈도우 (메모리)
 const tracker = new SlidingWindow(cfg.burstWindowSec * 1000);
-// 메시지에서 "직접 입력한" 멘션만 셉니다.
-// - 답장(Reply)의 자동 멘션은 메시지 본문에 <@id> 가 없으므로 자동으로 제외됩니다.
-// - 권한이 없어 실제로는 핑이 되지 않는 @everyone/@here 는 세지 않습니다.
+// 메시지의 멘션 수를 셉니다.
+// ★ 메시지 내용(message.content)은 읽지 않습니다. 디스코드가 메시지 내용 인텐트 없이도 보내주는
+//   멘션 정보(message.mentions)만 사용합니다. (plan.md 14-7 특권 인텐트 심사 대응, 실제 서버에서 확인함)
+// - 같은 유저/역할을 여러 번 써도 1개로 계산됩니다 (디스코드가 중복 없이 보내줌).
+// - 답장(Reply)의 자동 멘션은 제외합니다: 답장이면 "답장 대상 작성자"를 유저 수에서 뺍니다.
+//   (내용을 읽을 수 없어 자동 멘션과 직접 입력을 구분하지 못하므로, 답장 대상을 또 직접 멘션하면 1명 덜 셉니다)
+// - @everyone/@here 는 실제로 핑이 될 때만 mention_everyone 이 true 입니다 (권한이 없으면 false).
+//   둘을 구분할 수 없어 합쳐서 역할 1개로 취급합니다.
 function extractMentions(message) {
-  const content = message.content ?? '';
+  const mentions = message.mentions;
 
-  const userIds = new Set();
-  for (const m of content.matchAll(/<@!?(\d{17,20})>/g)) {
-    if (message.mentions.users.has(m[1])) userIds.add(m[1]);
-  }
+  const userIds = new Set(mentions.users.keys());
+  const isReply = Boolean(message.reference?.messageId);
+  if (isReply && mentions.repliedUser) userIds.delete(mentions.repliedUser.id);
 
-  const roleIds = new Set();
-  for (const m of content.matchAll(/<@&(\d{17,20})>/g)) {
-    if (message.mentions.roles.has(m[1])) roleIds.add(m[1]);
-  }
-
-  const everyone = message.mentions.everyone && content.includes('@everyone');
-  const here = message.mentions.everyone && content.includes('@here');
-
-  // 같은 역할을 여러 번 써도 1개로 계산
-  const roleCount = roleIds.size + (everyone ? 1 : 0) + (here ? 1 : 0);
+  const roleCount = mentions.roles.size + (mentions.everyone ? 1 : 0);
   const userCount = userIds.size;
   return { userCount, roleCount, hasAny: userCount + roleCount > 0 };
 }
