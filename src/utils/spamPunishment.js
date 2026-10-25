@@ -8,11 +8,12 @@ const { warnEmbed } = require('./embeds');
 /**
  * options:
  *   client, message, member
- *   spam     { title, noticeLabel, timeoutMin, buildDM }
+ *   spam     { title, noticeLabel, timeoutMin, buildDM, onTimeoutApplied }
  *              title        로그 제목 (예: 'Emoji spam')
  *              noticeLabel  채널 통보 문구에 들어갈 이름 (예: 'emoji spam')
  *              timeoutMin   타임아웃 시간(분)
  *              buildDM      ({ guildName, unlockTimestamp }) => DM 임베드
+ *              onTimeoutApplied  (선택) 타임아웃이 실제로 적용된 직후에 호출 (이미 타임아웃 중이거나 적용에 실패하면 호출되지 않음)
  *   reasons  감지된 사유 문자열 배열
  *   targets  삭제할 메시지 [{ messageId, channelId }]
  *   extraFields  (선택) 로그 임베드에 덧붙일 필드 [{ name, value, inline }]
@@ -45,6 +46,7 @@ function punishSpammer({ client, message, member, spam, reasons, targets, extraF
           name: 'Apply timeout',
           run: async () => {
             await member.timeout(timeoutMs, spam.title);
+            spam.onTimeoutApplied?.();
           },
         },
     alreadyTimedOut

@@ -39,7 +39,10 @@ module.exports = {
     sameEmojiLimit: envInt('EMOJI_SAME_LIMIT'),         // 한 메시지에서 같은 이모지 반복 수
     totalLimit: envInt('EMOJI_TOTAL_LIMIT'),            // 시간 윈도우 안의 이모지 총합 (모든 채널 합산)
     totalWindowSec: envInt('EMOJI_TOTAL_WINDOW_SEC'),
-    timeoutMin: envInt('EMOJI_TIMEOUT_MIN'),
+    timeoutMin: envInt('EMOJI_TIMEOUT_MIN'),       // 타임아웃 시간(분): 첫 위반
+    timeoutMin2: envInt('EMOJI_TIMEOUT_2_MIN'),    // 반복 위반 2번째
+    timeoutMin3: envInt('EMOJI_TIMEOUT_3_MIN'),    // 반복 위반 3번째 이후 (더 늘어나지 않고 이 시간 유지)
+    strikeWindowMin: envInt('EMOJI_STRIKE_WINDOW_MIN'), // 직전 위반으로부터 이 시간(분) 안에 또 위반하면 "반복"으로 계산
   },
   sameMessageSpam: {
     repeatCount: envInt('SAMEMSG_REPEAT_COUNT'),        // 동일 메시지 N개 이상

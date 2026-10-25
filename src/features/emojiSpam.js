@@ -8,6 +8,8 @@
 // "같은 이모지" 판정: 유니코드는 피부색/변형 문자(FE0F)를 무시하고 비교, 커스텀은 이모지 ID 로 비교
 // 예외 채널(/emojispam exempt)과 그 채널의 스레드/포럼 게시글에서는 검사하지 않습니다.
 // 처리: 메시지 삭제 → 채널 통보 → 타임아웃 → DM → 로그 (utils/spamPunishment.js 공용)
+// 타임아웃은 반복할수록 길어집니다: 직전 처벌로부터 일정 시간 안에 또 걸리면 1번째 → 2번째 → 3번째 이후 순서로 늘어납니다
+// (규칙 종류와 상관없이 "이모지 도배" 전체를 합산, 기록은 DB 의 emoji_strikes — db.js 참고)
 const emojiRegex = require('emoji-regex');
 const config = require('../config');
 const db = require('../db');
@@ -116,17 +118,27 @@ async function handleMessage(message, client) {
   if (overTotal) totalEntries.forEach((e) => addTarget(e.data));
   if (!targets.length) addTarget(current);
 
+  // 몇 번째 위반인지에 따라 타임아웃 시간 결정 (3번째 이후는 같은 시간 유지)
+  // 이 부분은 await 없이 즉시 계산해야 합니다 (처벌 잠금이 punishSpammer 호출 즉시 걸려야 하기 때문)
+  const level = db.getNextEmojiStrikeLevel(userId);
+  const timeoutMin = level >= 3 ? cfg.timeoutMin3 : level === 2 ? cfg.timeoutMin2 : cfg.timeoutMin;
+  const alreadyTimedOut = (member.communicationDisabledUntilTimestamp ?? 0) > Date.now();
+
   await punishSpammer({
     client,
     message,
     member,
     reasons,
     targets,
+    extraFields: alreadyTimedOut
+      ? []
+      : [{ name: 'Offense', value: level === 1 ? 'First (no recent emoji-spam timeout)' : `#${level} (repeat within ${cfg.strikeWindowMin} min of the previous one)`, inline: true }],
     spam: {
       title: 'Emoji spam',
       noticeLabel: 'emoji spam',
-      timeoutMin: cfg.timeoutMin,
+      timeoutMin,
       buildDM: buildEmojiSpamDM,
+      onTimeoutApplied: () => db.recordEmojiStrike(userId), // 타임아웃이 실제로 걸렸을 때만 횟수에 반영
     },
   });
   return true;

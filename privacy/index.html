@@ -29,7 +29,7 @@
 <body>
 
     <h1>Privacy Policy</h1>
-    <p class="effective-date">Last updated: 2026-10-19</p>
+    <p class="effective-date">Last updated: 2026-10-26</p>
 
     <p>This is the privacy policy for the <strong>UmaAutomoderator</strong> Discord bot ("we," "our," or "us"). We are committed to protecting your privacy. This policy explains what data the bot handles, why, how long it is kept, who it is shared with, and how you can ask us about it or have it deleted.</p>
 
@@ -60,6 +60,11 @@
             <td><strong>Message log:</strong> message ID, user ID, channel ID, time</td>
             <td>To delete a spammer's recent messages after a violation</td>
             <td>Deleted automatically after about 65 minutes</td>
+        </tr>
+        <tr>
+            <td><strong>Repeat-offense record:</strong> user ID, the number of recent emoji-spam timeouts, and the time of the latest one</td>
+            <td>To make the timeout longer when someone repeats emoji spam shortly after being timed out</td>
+            <td>Deleted automatically a short while after the latest violation</td>
         </tr>
         <tr>
             <td><strong>Server settings:</strong> feature on/off, whitelisted role IDs, exempt channel IDs</td>

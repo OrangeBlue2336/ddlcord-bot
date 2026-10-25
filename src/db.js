@@ -32,7 +32,11 @@ const cache = {
   exemptChannels: new Set(),
   knownHashes: new Map(),   // 번호(id) -> { _id, phash, label, added_by, added_at }  (단계 5)
   knownKeywords: new Map(), // 키워드(소문자) -> { _id, word, normalized, added_by, added_at }  (단계 5)
+  emojiStrikes: new Map(),  // 유저 ID -> { count, lastAt(밀리초) }  이모지 도배 반복 위반 기록
 };
+
+// DB 에 아직 저장 중인 이모지 위반 기록 (종료할 때 마무리까지 기다리기 위함)
+const pendingStrikeWrites = new Set();
 
 // 메시지 기록 버퍼 (단계 5): 메시지마다 DB 에 쓰지 않고 모았다가 몇 초마다 한꺼번에 저장
 const MESSAGE_BUFFER_MAX = 20_000; // DB 장애가 길어져도 메모리가 무한정 늘지 않게
@@ -81,6 +85,33 @@ async function init({ uri, dbName }) {
     console.warn(`[db] Could not create the message_log user index: ${err.message}`);
   }
 
+  // 이모지 도배 반복 위반 기록: 시간이 지난 기록은 TTL 인덱스로 자동 삭제.
+  // (판정은 코드에서 시각을 직접 비교하므로 자동 삭제가 조금 늦어져도 결과는 같습니다)
+  const strikeTtlSec = config.emojiSpam.strikeWindowMin * 60;
+  try {
+    try {
+      await col('emoji_strikes').createIndex({ last_at: 1 }, { expireAfterSeconds: strikeTtlSec });
+    } catch (err) {
+      // 환경변수의 시간을 바꿔서 기존 인덱스와 설정이 달라진 경우: 기존 인덱스의 시간만 고침
+      if (err?.code !== 85 && err?.code !== 86) throw err;
+      await database.command({
+        collMod: 'emoji_strikes',
+        index: { keyPattern: { last_at: 1 }, expireAfterSeconds: strikeTtlSec },
+      });
+    }
+  } catch (err) {
+    console.warn(`[db] Could not set up the emoji_strikes TTL index: ${err.message}`);
+  }
+  // 아직 유효한(시간이 안 지난) 기록만 메모리로 불러옴. 실패해도 봇은 계속 시작 (이 경우 기록이 비어 있는 상태로 시작)
+  try {
+    const since = new Date(Date.now() - config.emojiSpam.strikeWindowMin * 60 * 1000);
+    for (const doc of await col('emoji_strikes').find({ last_at: { $gte: since } }).toArray()) {
+      cache.emojiStrikes.set(doc._id, { count: doc.count, lastAt: new Date(doc.last_at).getTime() });
+    }
+  } catch (err) {
+    console.warn(`[db] Could not load emoji_strikes: ${err.message}`);
+  }
+
   // 모아 둔 메시지 기록을 주기적으로 DB 에 저장
   flushTimer = setInterval(() => {
     flushMessageLog().catch(() => {});
@@ -92,6 +123,7 @@ async function close() {
   if (flushTimer) clearInterval(flushTimer);
   if (client) {
     await flushMessageLog().catch(() => {});
+    await Promise.allSettled([...pendingStrikeWrites]);
     await client.close();
     client = null;
     database = null;
@@ -274,6 +306,43 @@ async function getRecentUserMessages(userId, sinceMs) {
   return [...found].map(([messageId, channelId]) => ({ messageId, channelId }));
 }
 
+// ---------- 이모지 도배 반복 위반 기록 ----------
+// 유저별로 "최근 이모지 도배 처벌 횟수"와 마지막 처벌 시각만 저장합니다 (메시지 내용은 저장하지 않음).
+// 직전 처벌로부터 config.emojiSpam.strikeWindowMin 분 안에 또 처벌받으면 횟수가 늘고, 넘기면 1부터 다시 시작합니다.
+// 처벌 흐름은 시작하는 즉시 유저를 잠가야 해서 중간에 await 를 쓸 수 없으므로,
+// 조회/기록은 메모리에서 즉시(동기) 처리하고 DB 에는 뒤에서 저장합니다.
+function isStrikeActive(strike, now) {
+  return !!strike && now - strike.lastAt <= config.emojiSpam.strikeWindowMin * 60 * 1000;
+}
+
+// 지금 위반하면 몇 번째 위반인지(1부터). 기록은 바꾸지 않음
+function getNextEmojiStrikeLevel(userId, now = Date.now()) {
+  const strike = cache.emojiStrikes.get(userId);
+  return isStrikeActive(strike, now) ? strike.count + 1 : 1;
+}
+
+// 이모지 도배 처벌 1회를 기록하고 새 횟수를 돌려줌 (동기). DB 저장은 기다리지 않음
+function recordEmojiStrike(userId, now = Date.now()) {
+  const count = getNextEmojiStrikeLevel(userId, now);
+  cache.emojiStrikes.set(userId, { count, lastAt: now });
+
+  // 시간이 지난 기록은 메모리에서도 정리 (처벌받은 적 있는 유저만 들어 있어 크기가 작음)
+  for (const [id, strike] of cache.emojiStrikes) {
+    if (!isStrikeActive(strike, now)) cache.emojiStrikes.delete(id);
+  }
+
+  try {
+    const write = col('emoji_strikes')
+      .updateOne({ _id: userId }, { $set: { count, last_at: new Date(now) } }, { upsert: true })
+      .catch((err) => console.warn(`[db] Could not save emoji strike for ${userId}: ${err.message}`))
+      .finally(() => pendingStrikeWrites.delete(write));
+    pendingStrikeWrites.add(write);
+  } catch (err) {
+    console.warn(`[db] Could not save emoji strike for ${userId}: ${err.message}`);
+  }
+  return count;
+}
+
 // ---------- keep-alive (Render 슬립 방지) ----------
 function isKeepAliveEnabled() {
   return getSetting('keepalive_enabled') === true;
@@ -311,6 +380,8 @@ module.exports = {
   isSpamExemptChannel,
   addSpamExemptChannel,
   removeSpamExemptChannel,
+  getNextEmojiStrikeLevel,
+  recordEmojiStrike,
   isKeepAliveEnabled,
   setKeepAliveEnabled,
 };
