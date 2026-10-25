@@ -1,28 +1,50 @@
 // 코드 내 조정용 상수 (임계값 등). 값을 바꾸고 봇을 재시작하면 적용됩니다.
+//
+// 멤버가 알면 악용할 수 있는 "감지 기준 숫자"(신규 계정 기준, 멘션/이모지/같은 메시지 도배 기준)는
+// 코드에 적지 않고 호스팅 서비스의 환경변수(.env.dev / .env.prod 포함)에서 읽습니다.
+// 필요한 환경변수 이름은 아래 각 항목 옆에 적혀 있습니다. 값이 비었거나 1 이상의 정수가 아니면
+// 봇이 시작할 때 어떤 항목이 문제인지 알려주고 멈춥니다 (index.js).
+const envProblems = [];
+
+// 환경변수 NAME 을 1 이상의 정수로 읽음. 문제가 있으면 이름을 envProblems 에 기록하고 NaN 을 돌려줌
+function envInt(name) {
+  const raw = (process.env[name] ?? '').trim();
+  const value = Number(raw);
+  if (!raw || !Number.isInteger(value) || value < 1) {
+    envProblems.push(name);
+    return NaN;
+  }
+  return value;
+}
+
 module.exports = {
+  envProblems, // 비어 있지 않으면 환경변수 설정에 문제가 있는 것 (index.js 가 확인)
   keepAlive: { intervalMin: 10 }, // Render 슬립 방지용 자기 자신 호출 간격(분)
   botStatus: 'Looking for spammers', // 봇 로그인 후 표시할 상태 메시지 (프로필의 사용자 지정 상태). 빈 문자열이면 설정하지 않음
-  accountAge: { minDays: 14 },
+  accountAge: { minDays: envInt('ACCOUNT_AGE_MIN_DAYS') }, // 이 일수보다 어린 계정은 타임아웃
   punishment: {
     lateMessageGraceSec: 5,   // 처벌이 끝난 뒤 이 시간(초) 동안 늦게 도착하는 해당 유저의 메시지도 바로 삭제
   },
   pingSpam: {
-    userMentionLimit: 5,      // 한 메시지 내 서로 다른 유저 멘션 수
-    roleMentionLimit: 2,      // 역할 + @everyone + @here 합산
-    burstCount: 5,            // 멘션 포함 메시지 수
-    burstWindowSec: 15,
-    timeoutMin: 30,
+    userMentionLimit: envInt('PING_USER_MENTION_LIMIT'), // 한 메시지 내 서로 다른 유저 멘션 수
+    roleMentionLimit: envInt('PING_ROLE_MENTION_LIMIT'), // 역할 + @everyone + @here 합산
+    burstCount: envInt('PING_BURST_COUNT'),              // 멘션 포함 메시지 수
+    burstWindowSec: envInt('PING_BURST_WINDOW_SEC'),
+    timeoutMin: envInt('PING_TIMEOUT_MIN'),
   },
   emojiSpam: {
-    perMessageLimit: 10,
-    burstCount: 10,
-    burstWindowSec: 15,
-    timeoutMin: 10,
+    perMessageLimit: envInt('EMOJI_PER_MESSAGE_LIMIT'), // 한 메시지의 이모지 수
+    burstCount: envInt('EMOJI_BURST_COUNT'),            // 같은 채널에서 이모지 포함 메시지 수
+    burstWindowSec: envInt('EMOJI_BURST_WINDOW_SEC'),
+    sameEmojiLimit: envInt('EMOJI_SAME_LIMIT'),         // 한 메시지에서 같은 이모지 반복 수
+    totalLimit: envInt('EMOJI_TOTAL_LIMIT'),            // 시간 윈도우 안의 이모지 총합 (모든 채널 합산)
+    totalWindowSec: envInt('EMOJI_TOTAL_WINDOW_SEC'),
+    timeoutMin: envInt('EMOJI_TIMEOUT_MIN'),
   },
   sameMessageSpam: {
-    repeatCount: 5,           // 동일 메시지 N개 이상
-    windowSec: 15,
-    timeoutMin: 10,
+    repeatCount: envInt('SAMEMSG_REPEAT_COUNT'),        // 동일 메시지 N개 이상
+    windowSec: envInt('SAMEMSG_WINDOW_SEC'),
+    timeoutMin: envInt('SAMEMSG_TIMEOUT_MIN'),
   },
   imageSpam: {
     channelCount: 3,          // 서로 다른 채널 수

@@ -15,7 +15,7 @@ function buildAccountAgeDM({ guildName, unlockTimestamp }) {
     .setColor(COLORS.error)
     .setTitle(`You have been timed out in ${guildName}`)
     .setDescription(
-      'For security reasons, our server requires all accounts to be at least 14 days old, so you have been timed out ' +
+      `For security reasons, our server requires all accounts to be at least ${config.accountAge.minDays} days old, so you have been timed out ` +
         `until <t:${unlockTimestamp}:F>.\n\n` +
         'This is an automatic measure applied to new accounts. If you wish to be un-timed out sooner, please open a ModMail ticket in our server.'
     )

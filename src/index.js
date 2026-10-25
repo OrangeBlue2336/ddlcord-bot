@@ -16,6 +16,16 @@ if (!process.env.DEVELOPER_ID) {
 // ---------- 2. 모듈 로드 (환경변수 로드 이후) ----------
 const fs = require('fs');
 const { Client, GatewayIntentBits } = require('discord.js');
+const config = require('./config');
+
+// 감지 기준 숫자는 환경변수에서 읽습니다 (config.js). 비었거나 잘못된 항목이 있으면 이름만 알려주고 멈춥니다.
+if (config.envProblems.length) {
+  console.error(
+    `These detection settings are missing or not a whole number of 1 or more (check .env.${mode} or your hosting environment variables): ${config.envProblems.join(', ')}`
+  );
+  process.exit(1);
+}
+
 const db = require('./db');
 const keepAlive = require('./utils/keepAlive');
 const { loadCommandModules } = require('./utils/commandLoader');
