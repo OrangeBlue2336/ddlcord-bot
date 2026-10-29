@@ -7,6 +7,9 @@
 // 이모지 = 유니코드 이모지(가족/국기/피부색 같은 조합형은 1개) + 서버 커스텀 이모지(<:이름:ID>, <a:이름:ID>)
 // "같은 이모지" 판정: 유니코드는 피부색/변형 문자(FE0F)를 무시하고 비교, 커스텀은 이모지 ID 로 비교
 // 예외 채널(/emojispam exempt)과 그 채널의 스레드/포럼 게시글에서는 검사하지 않습니다.
+// 메시지를 수정한 경우에도 수정된 내용으로 같은 검사를 합니다 (events/messageUpdate.js 가 handleMessage 를 edited 로 호출).
+//   - 수정 전에 이미 윈도우에 기록된 메시지는 새 메시지로 또 세지 않고 그 기록만 갱신합니다 (이모지 수는 더 큰 쪽을 유지).
+//   - 윈도우에 없던 메시지(이모지가 없었거나 시간이 지난 메시지)를 수정해 이모지를 넣으면 "수정한 시각"에 새로 보낸 것처럼 합산합니다.
 // 처리: 메시지 삭제 → 채널 통보 → 타임아웃 → DM → 로그 (utils/spamPunishment.js 공용)
 // 타임아웃은 반복할수록 길어집니다: 직전 처벌로부터 일정 시간 안에 또 걸리면 1번째 → 2번째 → 3번째 이후 순서로 늘어납니다
 // (규칙 종류와 상관없이 "이모지 도배" 전체를 합산, 기록은 DB 의 emoji_strikes — db.js 참고)
@@ -37,6 +40,9 @@ function normalizeUnicodeEmoji(emoji) {
   return emoji.replace(VARIATION_SELECTOR, '').replace(SKIN_TONE, '');
 }
 
+// 윈도우에 이미 있는 메시지가 수정된 경우: 이모지 수는 더 큰 쪽을 남김 (이모지를 올렸다가 지워서 합산을 피하는 우회 방지)
+const keepLargerCount = (oldData, newData) => ({ ...newData, count: Math.max(oldData.count, newData.count) });
+
 // 메시지 안의 이모지를 분석: total = 전체 개수(반복도 모두 셈), maxSame = 가장 많이 반복된 이모지의 개수
 function analyzeEmojis(content) {
   const counts = new Map();
@@ -63,7 +69,8 @@ function countEmojis(content) {
 }
 
 // 메시지 1개를 검사. 이모지 도배로 처리했거나 처리 중인 유저면 true (이후 다른 기능 검사는 건너뜀)
-async function handleMessage(message, client) {
+// edited: 새 메시지가 아니라 "수정된 메시지"를 검사하는 경우 true (messageUpdate 이벤트)
+async function handleMessage(message, client, { edited = false } = {}) {
   if (!db.isFeatureEnabled('emojispam')) return false;
   if (!message.content) return false;
 
@@ -81,8 +88,10 @@ async function handleMessage(message, client) {
 
   const channelKey = `${userId}:${message.channelId}`;
   const current = { messageId: message.id, channelId: message.channelId };
-  const channelEntries = tracker.add(channelKey, current, message.createdTimestamp);
-  const totalEntries = totalTracker.add(userId, { ...current, count: emojiCount }, message.createdTimestamp);
+  // 새 메시지는 보낸 시각, 수정된 메시지는 수정한 시각을 기준으로 윈도우에 기록 (같은 메시지가 이미 있으면 갱신만)
+  const eventTime = edited ? (message.editedTimestamp ?? Date.now()) : message.createdTimestamp;
+  const channelEntries = tracker.upsert(channelKey, current, eventTime);
+  const totalEntries = totalTracker.upsert(userId, { ...current, count: emojiCount }, eventTime, keepLargerCount);
   const windowTotal = totalEntries.reduce((sum, e) => sum + e.data.count, 0);
 
   const reasons = [];
@@ -124,15 +133,19 @@ async function handleMessage(message, client) {
   const timeoutMin = level >= 3 ? cfg.timeoutMin3 : level === 2 ? cfg.timeoutMin2 : cfg.timeoutMin;
   const alreadyTimedOut = (member.communicationDisabledUntilTimestamp ?? 0) > Date.now();
 
+  const extraFields = [];
+  if (!alreadyTimedOut) {
+    extraFields.push({ name: 'Offense', value: level === 1 ? 'First (no recent emoji-spam timeout)' : `#${level} (repeat within ${cfg.strikeWindowMin} min of the previous one)`, inline: true });
+  }
+  if (edited) extraFields.push({ name: 'Trigger', value: 'Edited message', inline: true });
+
   await punishSpammer({
     client,
     message,
     member,
     reasons,
     targets,
-    extraFields: alreadyTimedOut
-      ? []
-      : [{ name: 'Offense', value: level === 1 ? 'First (no recent emoji-spam timeout)' : `#${level} (repeat within ${cfg.strikeWindowMin} min of the previous one)`, inline: true }],
+    extraFields,
     spam: {
       title: 'Emoji spam',
       noticeLabel: 'emoji spam',

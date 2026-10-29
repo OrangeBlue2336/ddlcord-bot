@@ -20,6 +20,7 @@ function envInt(name) {
 module.exports = {
   envProblems, // 비어 있지 않으면 환경변수 설정에 문제가 있는 것 (index.js 가 확인)
   keepAlive: { intervalMin: 10 }, // Render 슬립 방지용 자기 자신 호출 간격(분)
+  startupNotice: { dedupeMin: 10 }, // Render 에서만: 이 시간(분) 안에 "Bot started" 로그가 이미 올라갔으면 또 올리지 않음 (재배포/재시작이 겹칠 때 중복 방지)
   botStatus: 'Looking for spammers', // 봇 로그인 후 표시할 상태 메시지 (프로필의 사용자 지정 상태). 빈 문자열이면 설정하지 않음
   accountAge: { minDays: envInt('ACCOUNT_AGE_MIN_DAYS') }, // 이 일수보다 어린 계정은 타임아웃
   punishment: {

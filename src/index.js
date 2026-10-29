@@ -15,7 +15,7 @@ if (!process.env.DEVELOPER_ID) {
 
 // ---------- 2. 모듈 로드 (환경변수 로드 이후) ----------
 const fs = require('fs');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const config = require('./config');
 
 // 감지 기준 숫자는 환경변수에서 읽습니다 (config.js). 비었거나 잘못된 항목이 있으면 이름만 알려주고 멈춥니다.
@@ -52,6 +52,8 @@ async function main() {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.MessageContent,   // 도배/스팸 이미지 감지용 메시지 내용 읽기 (특권 인텐트). 명령어는 슬래시라서 필요 없음
     ],
+    // 봇이 기억하지 못하는 옛 메시지(봇을 재시작하기 전에 보낸 메시지 등)를 수정해도 수정 이벤트를 받기 위함 (events/messageUpdate.js)
+    partials: [Partials.Message],
   });
 
   // ---------- 4. 명령어 / 이벤트 자동 로드 ----------

@@ -343,6 +343,25 @@ function recordEmojiStrike(userId, now = Date.now()) {
   return count;
 }
 
+// ---------- 시작 알림 중복 방지 ----------
+// Render 는 재배포/재시작이 겹치면 봇이 짧은 시간에 여러 번 켜질 수 있습니다. 그때마다 "Bot started" 로그가 올라가지 않도록,
+// 마지막으로 시작 알림을 올린 시각을 DB 에 한 번에 한 곳만 기록할 수 있게(원자적으로) 저장합니다.
+// 알림을 올려도 되면 true (표식을 갱신함), 이미 windowMs 안에 올라갔으면 false. DB 오류가 나면 알림을 빠뜨리지 않도록 true.
+async function claimStartupNotice(windowMs, now = Date.now()) {
+  try {
+    await col('bot_meta').findOneAndUpdate(
+      { _id: 'startup_notice', at: { $lt: new Date(now - windowMs) } },
+      { $set: { at: new Date(now) } },
+      { upsert: true }
+    );
+    return true; // 표식이 없었거나 오래된 표식이어서 갱신함
+  } catch (err) {
+    if (err?.code === 11000) return false; // 최근 표식이 있어서 조건에 맞지 않았고, 새로 만들려다 같은 _id 충돌
+    console.warn(`[db] Could not check the startup notice marker: ${err.message}`);
+    return true;
+  }
+}
+
 // ---------- keep-alive (Render 슬립 방지) ----------
 function isKeepAliveEnabled() {
   return getSetting('keepalive_enabled') === true;
@@ -354,6 +373,7 @@ async function setKeepAliveEnabled(enabled) {
 
 module.exports = {
   FEATURES,
+  claimStartupNotice,
   init,
   close,
   getSetting,

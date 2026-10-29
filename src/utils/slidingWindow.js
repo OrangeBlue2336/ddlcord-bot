@@ -27,6 +27,18 @@ class SlidingWindow {
     return [...list];
   }
 
+  // 같은 메시지(data.messageId)의 기록이 이미 있으면 그 기록의 내용만 갱신하고(시간은 그대로), 없으면 새로 추가.
+  // 메시지 수정(edit)처럼 "이미 센 메시지"가 다시 들어오는 경우에 같은 메시지가 두 번 세어지지 않게 합니다.
+  // merge(예전 data, 새 data) 는 갱신할 때 어떤 내용을 남길지 정하는 함수 (생략하면 새 data 로 교체)
+  upsert(key, data, time = Date.now(), merge = (_old, next) => next) {
+    const list = this._prune(key, time);
+    const existing = list.find((e) => e.data.messageId === data.messageId);
+    if (existing) existing.data = merge(existing.data, data);
+    else list.push({ time, data });
+    this.entries.set(key, list);
+    return [...list];
+  }
+
   // 현재 윈도우 안의 기록 조회
   get(key, now = Date.now()) {
     return [...this._prune(key, now)];

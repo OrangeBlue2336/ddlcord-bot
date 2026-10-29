@@ -87,9 +87,22 @@ module.exports = {
 
     const featureText = db.FEATURES.map((f) => `${db.isFeatureEnabled(f) ? '🟢' : '🔴'} ${f}`).join('\n');
 
+    const hasWarning = missingCount > 0 || !commandSync.ok;
+
+    // Render 에서는 재배포/재시작이 겹쳐 짧은 시간에 여러 번 켜질 수 있어서, 같은 시작 알림이 이미 올라갔으면 건너뜀.
+    // (경고가 있는 시작 알림은 놓치면 안 되므로 항상 올림. 내 컴퓨터에서 켤 때는 이 검사를 하지 않음)
+    if (process.env.RENDER) {
+      const windowMs = config.startupNotice.dedupeMin * 60 * 1000;
+      const mayAnnounce = await db.claimStartupNotice(windowMs);
+      if (!mayAnnounce && !hasWarning) {
+        console.log(`[ready] Skipped the "Bot started" log: one was already posted within the last ${config.startupNotice.dedupeMin} minutes.`);
+        return;
+      }
+    }
+
     await sendLog(readyClient, {
       title: 'Bot started',
-      status: missingCount > 0 || !commandSync.ok ? 'warning' : 'info',
+      status: hasWarning ? 'warning' : 'info',
       description: 'The bot is online. If you can see this message, the log channel is set up correctly.',
       fields: [
         { name: 'Environment', value: process.env.BOT_MODE, inline: true },
