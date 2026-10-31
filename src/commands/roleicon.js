@@ -53,7 +53,7 @@ async function checkAttachment(file) {
   if (!detectImageType(buffer)) {
     return { problem: `This file is not a real ${allowedText} image (the file content does not match its extension).` };
   }
-  return { buffer, name: file.name, size: buffer.length };
+  return { buffer, name: file.name, size: buffer.length, type: detectImageType(buffer) };
 }
 
 // ---------- 대상 역할 찾기 ----------
@@ -145,6 +145,7 @@ async function handleSet(interaction, member, role) {
       { name: 'Role', value: `<@&${role.id}> (${role.name})`, inline: true },
       { name: 'Image', value: `${truncate(checked.name, 100)} (${kb(checked.size)})`, inline: true },
     ],
+    image: { attachment: checked.buffer, name: `role-icon.${checked.type}` },
   });
   return replyEmbed(interaction, successEmbed('Role icon updated', `The icon of <@&${role.id}> has been changed.`));
 }

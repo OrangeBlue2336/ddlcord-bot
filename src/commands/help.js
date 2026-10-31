@@ -15,7 +15,7 @@ const PAGES = [
   },
   {
     title: 'Management',
-    commands: ['whitelist', 'status', 'testdm', 'keepalive'],
+    commands: ['whitelist', 'status', 'slowmode', 'testdm', 'keepalive'],
   },
   {
     title: 'General',
@@ -59,6 +59,10 @@ const SUMMARIES = {
   status: {
     summary: 'Show feature on/off states, test mode, exempt channels and whitelisted roles.',
     usage: ['status'],
+  },
+  slowmode: {
+    summary: 'Set or turn off slowmode in this channel or another channel.',
+    usage: ['slowmode <seconds> [#channel]'],
   },
   testdm: {
     summary: 'Send yourself a sample of a punishment DM.',

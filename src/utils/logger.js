@@ -34,6 +34,7 @@ function formatUser(userOrMember) {
  *   failureReason  실패 사유
  *   description    본문
  *   fields         [{ name, value, inline }]  추가 필드
+ *   image          { attachment, name } - 로그 임베드에 첨부할 이미지
  * 전송에 실패하면 콘솔에 에러를 출력하고 false 를 반환합니다.
  */
 async function sendLog(client, options = {}) {
@@ -81,8 +82,17 @@ async function sendLog(client, options = {}) {
       }
     }
     if (fields.length) embed.addFields(fields.slice(0, 25));
+    if (options.image?.attachment && options.image?.name) {
+      embed.setImage(`attachment://${options.image.name}`);
+    }
 
-    await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+    await channel.send({
+      embeds: [embed],
+      ...(options.image?.attachment && options.image?.name
+        ? { files: [{ attachment: options.image.attachment, name: options.image.name }] }
+        : {}),
+      allowedMentions: { parse: [] },
+    });
     return true;
   } catch (err) {
     console.error('[logger] Failed to send log embed:', err.message, '| title:', options.title);

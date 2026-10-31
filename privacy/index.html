@@ -29,7 +29,7 @@
 <body>
 
     <h1>Privacy Policy</h1>
-    <p class="effective-date">Last updated: 2026-10-26</p>
+    <p class="effective-date">Last updated: 2026-10-31</p>
 
     <p>This is the privacy policy for the <strong>UmaAutomoderator</strong> Discord bot ("we," "our," or "us"). We are committed to protecting your privacy. This policy explains what data the bot handles, why, how long it is kept, who it is shared with, and how you can ask us about it or have it deleted.</p>
 
@@ -47,7 +47,7 @@
         <li><strong>Message text:</strong> Read in real time to count emojis and to detect the same message being repeated. It is NOT stored. For repeated-message detection, only a short fingerprint (hash) of the text is kept in memory only for a short time window. When the bot takes action for repeated messages, up to 300 characters of the offending message are shown in the server's private moderation log channel on Discord.</li>
         <li><strong>Mentions:</strong> The list of users and roles a message mentions (not the text itself) is used to detect mass mentions. It is kept only in memory for a short time window.</li>
         <li><strong>Images:</strong> If scam image detection is turned on, the bot briefly remembers in memory (up to about 10 minutes) the message ID, channel ID and image link of images you post. If one user posts images in several different channels within a short time, those images are downloaded temporarily into memory to compute a similarity hash and compare it with known scam images. If scam keywords are configured, a resized copy may also be sent to the <a href="https://ocr.space/" target="_blank" rel="noopener">OCR.space</a> service to read any text in it. We do not keep the images.</li>
-        <li><strong>Role icon images:</strong> If a server booster uses the role icon command, the attached image is downloaded temporarily to check its type and size and is then uploaded to Discord as the role icon. We do not keep it.</li>
+        <li><strong>Role icon images:</strong> If a server booster uses the role icon command, the attached image is downloaded temporarily to check its type and size, uploaded to Discord as the role icon, and attached to the server's private moderation log post. We do not keep a separate copy.</li>
         <li><strong>Direct messages:</strong> When the bot takes action against a member, it sends that member a DM explaining what happened. These DMs are only about the moderation action, never advertising. The bot does not read DMs sent to it.</li>
     </ul>
 
@@ -80,7 +80,7 @@
     </div>
     <p>Two other places hold some data:</p>
     <ul>
-        <li><strong>The server's private moderation log channel on Discord:</strong> Each action is recorded there with the user, the reason, the channel, the result of each step, and (for repeated messages) up to 300 characters of the message. It stays on Discord and is controlled by the server's staff, who can delete it. We do not copy it anywhere else.</li>
+        <li><strong>The server's private moderation log channel on Discord:</strong> Each action is recorded there with the user, the reason, the channel, the result of each step, and (for repeated messages) up to 300 characters of the message. A role icon image is attached when that command changes an icon. It stays on Discord and is controlled by the server's staff, who can delete it. We do not copy it anywhere else.</li>
         <li><strong>Hosting logs:</strong> Our hosting provider keeps short-lived technical logs (for example, error messages). They may include user IDs but never message content, and are kept for a limited time under the provider's own policy.</li>
     </ul>
 
